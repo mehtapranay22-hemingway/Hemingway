@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    background-color: #FAF9F6;
+    color: #1A1A1A;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  input, textarea, select {
+    outline: none;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+  }
+}
+
+@layer components {
+  .script-reveal {
+    animation: fade-up 320ms ease both;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .script-reveal {
+    animation: none;
+  }
+}
