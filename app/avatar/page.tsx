@@ -1,46 +1,57 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import Link from 'next/link'
 import Sidebar from '../components/Sidebar'
 import type { HeyGenAvatar, HeyGenVoice } from '@/lib/types'
 
-function AvatarContent() {
-  const router = useRouter()
-  const params = useSearchParams()
-  const promptFromHome = params.get('prompt') || ''
-  const typeFromHome = params.get('type') || ''
-
+function AvatarSettings() {
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>([])
   const [voices, setVoices] = useState<HeyGenVoice[]>([])
   const [selectedAvatar, setSelectedAvatar] = useState<HeyGenAvatar | null>(null)
   const [selectedVoice, setSelectedVoice] = useState<HeyGenVoice | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     async function load() {
       try {
-        const [avatarRes, voiceRes] = await Promise.all([
+        const [avatarRes, voiceRes, prefRes] = await Promise.all([
           fetch('/api/avatars'),
           fetch('/api/voices'),
+          fetch('/api/preferences'),
         ])
-        const avatarData = await avatarRes.json()
-        const voiceData = voiceRes.ok ? await voiceRes.json() : { voices: [] }
 
-        if (!avatarRes.ok) {
-          setError(avatarData.error || 'Failed to load avatars. Check your HEYGEN_API_KEY.')
-          return
+        const avatarData = await avatarRes.json()
+        if (!avatarRes.ok) { setError(avatarData.error || 'Failed to load avatars'); return }
+
+        const { avatars: a } = avatarData
+        const { voices: v } = voiceRes.ok ? await voiceRes.json() : { voices: [] }
+        const pref = prefRes.ok ? await prefRes.json() : {}
+
+        setAvatars(a || [])
+        setVoices(v || [])
+
+        // Pre-select saved preference
+        if (pref.avatarId) {
+          const saved = a?.find((av: HeyGenAvatar) => av.avatar_id === pref.avatarId)
+          if (saved) setSelectedAvatar(saved)
+        } else {
+          // Default to first female
+          const female = a?.find((av: HeyGenAvatar) => av.gender?.toLowerCase() === 'female')
+          setSelectedAvatar(female || a?.[0] || null)
         }
 
-        setAvatars(avatarData.avatars || [])
-        setVoices(voiceData.voices || [])
-        if (voiceData.voices?.length > 0) setSelectedVoice(voiceData.voices[0])
+        if (pref.voiceId) {
+          const savedVoice = v?.find((vo: HeyGenVoice) => vo.voice_id === pref.voiceId)
+          if (savedVoice) setSelectedVoice(savedVoice)
+        } else {
+          setSelectedVoice(v?.[0] || null)
+        }
       } catch {
-        setError('Could not reach HeyGen. Check your API key and network.')
+        setError('Could not load avatars. Check your HEYGEN_API_KEY.')
       } finally {
         setLoading(false)
       }
@@ -48,25 +59,26 @@ function AvatarContent() {
     load()
   }, [])
 
-  async function handleContinue() {
+  async function handleSave() {
     if (!selectedAvatar || !selectedVoice) return
     setSaving(true)
+    setSaved(false)
     try {
-      const sessionRes = await fetch('/api/session', { method: 'POST' })
-      const { id } = await sessionRes.json()
-      const p = new URLSearchParams({
-        s: id,
-        avatarId: selectedAvatar.avatar_id,
-        avatarName: selectedAvatar.avatar_name,
-        avatarImg: selectedAvatar.preview_image_url || '',
-        voiceId: selectedVoice.voice_id,
-        voiceName: selectedVoice.name,
-        ...(promptFromHome ? { prompt: promptFromHome } : {}),
-        ...(typeFromHome ? { type: typeFromHome } : {}),
+      await fetch('/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          avatarId: selectedAvatar.avatar_id,
+          avatarName: selectedAvatar.avatar_name,
+          voiceId: selectedVoice.voice_id,
+          voiceName: selectedVoice.name,
+        }),
       })
-      router.push(`/brief?${p}`)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
     } catch {
-      setError('Failed to create session. Try again.')
+      setError('Failed to save')
+    } finally {
       setSaving(false)
     }
   }
@@ -75,29 +87,22 @@ function AvatarContent() {
     <div className="flex min-h-screen bg-[#F7F5F2]">
       <Sidebar />
       <div className="ml-56 flex-1">
-
-        {/* Top bar */}
-        <div className="sticky top-0 z-10 bg-[#F7F5F2]/90 backdrop-blur-sm border-b border-[#E8E5DF] px-8 py-3 flex items-center gap-3">
-          <Link href="/" className="text-muted text-sm hover:text-ink transition-colors">← Home</Link>
-          <span className="text-divider">/</span>
-          <span className="text-sm text-ink">Select avatar</span>
+        <div className="sticky top-0 z-10 bg-[#F7F5F2]/90 backdrop-blur-sm border-b border-[#E8E5DF] px-8 py-3">
+          <span className="text-sm text-ink">Avatar settings</span>
         </div>
 
         <div className="px-8 py-10 max-w-5xl">
-          <h1 className="font-display text-3xl text-ink mb-1">Choose your avatar</h1>
-          <p className="text-muted text-sm mb-10">This is who delivers the ad.</p>
+          <h1 className="font-display text-3xl text-ink mb-1">Default avatar</h1>
+          <p className="text-muted text-sm mb-10">
+            Set once. Used for all video renders unless you change it.
+          </p>
 
-          {loading && (
-            <p className="text-muted text-sm">Loading avatars from HeyGen...</p>
-          )}
+          {loading && <p className="text-muted text-sm">Loading avatars from HeyGen...</p>}
 
           {error && (
             <div className="border border-error/30 bg-error/5 text-error text-sm px-5 py-4 mb-8 max-w-lg">
               <div className="font-medium mb-1">Could not load avatars</div>
-              <div className="text-error/80">{error}</div>
-              <div className="mt-3 text-xs text-error/60">
-                Add <code className="font-mono">HEYGEN_API_KEY</code> to your .env.local and restart the server.
-              </div>
+              <div className="text-error/80 text-xs mt-1">{error}</div>
             </div>
           )}
 
@@ -107,7 +112,7 @@ function AvatarContent() {
 
           {avatars.length > 0 && (
             <>
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-12">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 mb-10">
                 {avatars.map(avatar => {
                   const isSelected = selectedAvatar?.avatar_id === avatar.avatar_id
                   return (
@@ -121,9 +126,17 @@ function AvatarContent() {
                     >
                       <div className="relative aspect-[3/4] bg-divider overflow-hidden">
                         {avatar.preview_image_url ? (
-                          <Image src={avatar.preview_image_url} alt={avatar.avatar_name} fill className="object-cover" sizes="160px" />
+                          <Image
+                            src={avatar.preview_image_url}
+                            alt={avatar.avatar_name}
+                            fill
+                            className="object-cover"
+                            sizes="160px"
+                          />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted text-xs">No preview</div>
+                          <div className="w-full h-full flex items-center justify-center text-muted text-xs">
+                            No preview
+                          </div>
                         )}
                         {isSelected && (
                           <div className="absolute top-2 right-2 w-5 h-5 bg-accent flex items-center justify-center">
@@ -135,7 +148,9 @@ function AvatarContent() {
                       </div>
                       <div className="px-2 py-2">
                         <div className="text-xs text-ink truncate">{avatar.avatar_name}</div>
-                        {avatar.gender && <div className="text-xs text-muted capitalize">{avatar.gender}</div>}
+                        {avatar.gender && (
+                          <div className="text-xs text-muted capitalize">{avatar.gender}</div>
+                        )}
                       </div>
                     </button>
                   )
@@ -153,11 +168,11 @@ function AvatarContent() {
                           key={voice.voice_id}
                           onClick={() => setSelectedVoice(voice)}
                           className={[
-                            'text-left px-4 py-3 border bg-white transition-all text-sm',
+                            'text-left px-4 py-3 border bg-white transition-all',
                             isSelected ? 'border-accent border-2' : 'border-divider hover:border-muted',
                           ].join(' ')}
                         >
-                          <div className="font-medium text-ink">{voice.name}</div>
+                          <div className="text-sm font-medium text-ink">{voice.name}</div>
                           <div className="text-xs text-muted capitalize">{voice.gender}</div>
                         </button>
                       )
@@ -166,13 +181,18 @@ function AvatarContent() {
                 </div>
               )}
 
-              <button
-                onClick={handleContinue}
-                disabled={!selectedAvatar || !selectedVoice || saving}
-                className="bg-ink text-cream px-8 py-3 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {saving ? 'Setting up...' : 'Continue to brief →'}
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleSave}
+                  disabled={!selectedAvatar || !selectedVoice || saving}
+                  className="bg-ink text-cream px-8 py-3 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-40"
+                >
+                  {saving ? 'Saving...' : 'Save default avatar'}
+                </button>
+                {saved && (
+                  <span className="text-sm text-accent font-medium">Saved ✓</span>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -191,7 +211,7 @@ export default function AvatarPage() {
         </div>
       </div>
     }>
-      <AvatarContent />
+      <AvatarSettings />
     </Suspense>
   )
 }

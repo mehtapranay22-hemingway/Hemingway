@@ -3,10 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import Sidebar from './components/Sidebar'
 
-// All cards use one consistent dark overlay — visual variety comes from the photo, not the hue
 const OVERLAY = 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.38) 55%, rgba(0,0,0,0.12) 100%)'
 
 const CATEGORIES = [
@@ -59,7 +57,7 @@ export default function HomePage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!prompt.trim()) return
-    router.push(`/avatar?prompt=${encodeURIComponent(prompt.trim())}`)
+    router.push(`/brief?prompt=${encodeURIComponent(prompt.trim())}`)
   }
 
   return (
@@ -130,7 +128,7 @@ export default function HomePage() {
             {['Product Launch', 'UGC Testimonial', 'Founder Story'].map(label => (
               <button
                 key={label}
-                onClick={() => router.push(`/avatar?type=${label.toLowerCase().replace(/ /g, '-')}`)}
+                onClick={() => router.push(`/brief?type=${label.toLowerCase().replace(/ /g, '-')}`)}
                 className="text-xs text-[#6B6862] border border-[#E0DDD7] bg-white px-3 py-1.5 hover:border-ink hover:text-ink transition-colors"
               >
                 {label}
@@ -156,20 +154,18 @@ export default function HomePage() {
             {CATEGORIES.map(cat => (
               <Link
                 key={cat.id}
-                href={`/avatar?type=${cat.id}`}
+                href={`/brief?type=${cat.id}`}
                 className="group relative overflow-hidden aspect-[4/3] flex flex-col justify-between bg-[#1A1410] transition-all hover:scale-[1.015] hover:shadow-xl"
               >
-                {/* Photo */}
-                <Image
+                {/* Photo — plain img bypasses Next.js server-side proxy */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={cat.image}
                   alt={cat.title.replace('\n', ' ')}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  sizes="(max-width: 1280px) 33vw, 400px"
-                  priority
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
 
-                {/* Unified dark overlay — same treatment for all 6 cards */}
+                {/* Dark overlay */}
                 <div className="absolute inset-0" style={{ background: OVERLAY }} />
 
                 {/* Top label */}
