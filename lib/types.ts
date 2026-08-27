@@ -50,13 +50,44 @@ export type RenderJob = {
   startedAt: string
 }
 
+export type BriefAnalysis = {
+  verdict: 'proceed' | 'flag' | 'block'
+  brand_tier: 'budget' | 'mid' | 'premium' | 'luxury'
+  production: { clips: number; quality: string; clip_duration: number }
+  rationale: string
+  flag_message: string | null
+}
+
+export type PipelineStage = {
+  status: 'idle' | 'processing' | 'completed' | 'failed'
+  taskId?: string
+  videoUrl?: string
+  error?: string
+}
+
+export type BrollClip = PipelineStage & {
+  index: number
+  prompt: string
+  clipType: 't2v' | 'i2v'
+}
+
+export type Pipeline = {
+  avatar: PipelineStage
+  broll: BrollClip[]
+  compose: PipelineStage
+  finalVideoUrl?: string
+  fallbackMode?: boolean
+}
+
 export type Session = {
   id: string
   createdAt: string
   avatar?: AvatarConfig
   brief?: Brief
+  briefAnalysis?: BriefAnalysis
   scripts?: ScriptVariant[]
   renders: RenderJob[]
+  pipeline?: Pipeline
 }
 
 export type HeyGenAvatar = {
