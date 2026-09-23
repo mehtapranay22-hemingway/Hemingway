@@ -1,12 +1,12 @@
 const BASE = process.env.SHOTSTACK_ENV === 'production'
-  ? 'https://api.shotstack.io/v1'
-  : 'https://api.shotstack.io/stage/v1'
+  ? 'https://api.shotstack.io/edit/v1'
+  : 'https://api.shotstack.io/edit/stage'
 
 function headers() {
   return { 'x-api-key': process.env.SHOTSTACK_API_KEY || '', 'Content-Type': 'application/json' }
 }
 
-export async function composeVideo(avatarUrl: string, brollUrls: string[]): Promise<string> {
+export async function composeVideo(avatarUrl: string, brollUrls: string[], avatarDuration?: number): Promise<string> {
   const clips: object[] = []
   let time = 0
 
@@ -16,9 +16,11 @@ export async function composeVideo(avatarUrl: string, brollUrls: string[]): Prom
     time = 5
   }
 
-  // Avatar — estimate 20s; Shotstack will trim/extend to actual duration
-  clips.push({ asset: { type: 'video', src: avatarUrl }, start: time, length: 20, transition: { in: 'fade' } })
-  time += 20
+  // Avatar — use the actual HeyGen render duration so the cut lands exactly when speech ends,
+  // instead of freezing on the last frame or cutting off mid-sentence.
+  const avatarLength = avatarDuration ? Math.ceil(avatarDuration) : 20
+  clips.push({ asset: { type: 'video', src: avatarUrl }, start: time, length: avatarLength, transition: { in: 'fade' } })
+  time += avatarLength
 
   // Remaining B-roll (5s each)
   for (let i = 1; i < brollUrls.length; i++) {

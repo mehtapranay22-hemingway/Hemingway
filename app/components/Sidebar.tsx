@@ -1,7 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 const NAV = [
   {
@@ -10,6 +11,17 @@ const NAV = [
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M2 6.5L8 2l6 4.5V14a.5.5 0 01-.5.5h-3.75v-3.75h-3.5V14.5H2.5A.5.5 0 012 14V6.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    label: 'Library',
+    href: '/library',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1.5" y="2.5" width="13" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+        <path d="M6 2.5v11M1.5 6h4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+        <path d="M9 6.5l3 2-3 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
   },
@@ -24,14 +36,12 @@ const NAV = [
     ),
   },
   {
-    label: 'Brand',
-    href: '/brand',
+    label: 'Billing',
+    href: '/billing',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="2" y="2" width="5.5" height="5.5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
-        <rect x="8.5" y="2" width="5.5" height="5.5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
-        <rect x="2" y="8.5" width="5.5" height="5.5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
-        <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
+        <rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+        <path d="M1.5 6.5h13" stroke="currentColor" strokeWidth="1.2"/>
       </svg>
     ),
   },
@@ -39,6 +49,21 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [email, setEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(data => setEmail(data.user?.email ?? null))
+      .catch(() => {})
+  }, [])
+
+  async function handleSignOut() {
+    await fetch('/api/auth/signout', { method: 'POST' })
+    router.push('/')
+    router.refresh()
+  }
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-56 bg-white border-r border-[#E8E5DF] flex flex-col z-20">
@@ -80,9 +105,18 @@ export default function Sidebar() {
 
       {/* Bottom */}
       <div className="px-5 py-4 border-t border-[#E8E5DF]">
-        <p className="text-[10px] text-[#B0ACA5] uppercase tracking-widest font-sans">
-          Hemingway
-        </p>
+        {email ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-[#9B9892] truncate">{email}</span>
+            <button onClick={handleSignOut} className="text-[11px] text-muted hover:text-ink transition-colors shrink-0">
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <p className="text-[10px] text-[#B0ACA5] uppercase tracking-widest font-sans">
+            Hemingway
+          </p>
+        )}
       </div>
     </aside>
   )

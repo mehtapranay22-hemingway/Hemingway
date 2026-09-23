@@ -2,3 +2,17 @@
 .env*.local
 .next/
 node_modules/
+tsconfig.tsbuildinfo
+
+# Local file-based storage — being migrated off entirely (see lib/db.ts,
+# lib/sessions.ts, lib/uploads.ts). Contains real password hashes, session
+# tokens, and test-generated media; never belongs in source control.
+data/hemingway.db
+data/sessions.json
+data/custom-avatars.json
+data/avatar-cache.json
+data/voice-cache.json
+data/preferences.json
+public/videos/
+public/avatars/
+public/uploads/
