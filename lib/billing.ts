@@ -43,7 +43,7 @@ export async function startCheckout(
     // Dev-only bypass — see module comment above.
     if (process.env.NODE_ENV !== 'production') {
       const currentPeriodEnd = new Date(Date.now() + DEV_SIMULATED_PLAN_DAYS * 24 * 60 * 60 * 1000).toISOString()
-      upsertSubscription(userId, {
+      await upsertSubscription(userId, {
         plan: tier.id,
         status: 'active',
         provider: 'dev-simulated',
@@ -61,7 +61,7 @@ export async function startCheckout(
     return { error: `No Lemon Squeezy Variant configured for "${tier.name}" — create it in the Lemon Squeezy dashboard and set the matching env var (see .env.local.example).` }
   }
 
-  const user = getUserById(userId)
+  const user = await getUserById(userId)
   if (!user) return { error: 'Account not found.' }
 
   const base = appBaseUrl()
@@ -136,10 +136,10 @@ export async function handleWebhookEvent(
   // Lemon Squeezy's own docs — reliable enough to be the primary lookup.
   // Falling back to the stored Lemon Squeezy customer id covers the rare
   // case it doesn't round-trip on some later event.
-  function resolveUserId(): string | undefined {
+  async function resolveUserId(): Promise<string | undefined> {
     if (customData.userId) return customData.userId
     if (providerCustomerId) {
-      const existing = getSubscriptionByProviderId(providerCustomerId)
+      const existing = await getSubscriptionByProviderId(providerCustomerId)
       if (existing) return existing.userId
     }
     return undefined
@@ -147,11 +147,11 @@ export async function handleWebhookEvent(
 
   switch (eventName) {
     case 'subscription_created': {
-      const userId = resolveUserId()
+      const userId = await resolveUserId()
       const tier = customData.tier ? getTier(customData.tier) : mapTierByVariant(attrs.variant_id)
       if (!userId || !tier) break
 
-      upsertSubscription(userId, {
+      await upsertSubscription(userId, {
         plan: tier.id,
         status: 'active',
         provider: 'lemonsqueezy',
@@ -173,15 +173,15 @@ export async function handleWebhookEvent(
     // subscription_created just set moments earlier, so it's correctly a
     // no-op here; only a genuine renewal advances it further.
     case 'subscription_payment_success': {
-      const userId = resolveUserId()
+      const userId = await resolveUserId()
       if (!userId) break
 
-      const existing = getSubscription(userId)
+      const existing = await getSubscription(userId)
       const newRenewsAt = attrs.renews_at || null
       const isNewCycle = !existing.currentPeriodEnd
         || (!!newRenewsAt && new Date(newRenewsAt).getTime() > new Date(existing.currentPeriodEnd).getTime())
 
-      upsertSubscription(userId, {
+      await upsertSubscription(userId, {
         status: 'active',
         provider: 'lemonsqueezy',
         providerCustomerId: providerCustomerId || existing.providerCustomerId,
@@ -193,9 +193,9 @@ export async function handleWebhookEvent(
     }
 
     case 'subscription_updated': {
-      const userId = resolveUserId()
+      const userId = await resolveUserId()
       if (!userId) break
-      const existing = getSubscription(userId)
+      const existing = await getSubscription(userId)
       const tier = mapTierByVariant(attrs.variant_id)
 
       const status = attrs.status === 'active' || attrs.status === 'on_trial' ? 'active'
@@ -203,7 +203,7 @@ export async function handleWebhookEvent(
         : attrs.status === 'cancelled' || attrs.status === 'expired' ? 'canceled'
         : existing.status
 
-      upsertSubscription(userId, {
+      await upsertSubscription(userId, {
         status,
         currentPeriodEnd: attrs.renews_at ?? existing.currentPeriodEnd,
         ...(tier ? { plan: tier.id, videoAllowance: tier.videoAllowance } : {}),
@@ -213,9 +213,9 @@ export async function handleWebhookEvent(
 
     case 'subscription_cancelled':
     case 'subscription_expired': {
-      const userId = resolveUserId()
+      const userId = await resolveUserId()
       if (!userId) break
-      upsertSubscription(userId, { status: 'canceled' })
+      await upsertSubscription(userId, { status: 'canceled' })
       break
     }
 

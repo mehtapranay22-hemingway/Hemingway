@@ -3,13 +3,13 @@ import { saveCustomAvatar, updateCustomAvatar, deleteCustomAvatar, listCustomAva
 import { getCurrentUser } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
-  const user = getCurrentUser(req)
+  const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
-  return NextResponse.json({ avatars: listCustomAvatars(user.id) })
+  return NextResponse.json({ avatars: await listCustomAvatars(user.id) })
 }
 
 export async function POST(req: NextRequest) {
-  const user = getCurrentUser(req)
+  const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
 
   const body = await req.json().catch(() => null)
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'imageBase64 is required' }, { status: 400 })
   }
 
-  const avatar = saveCustomAvatar({
+  const avatar = await saveCustomAvatar({
     userId: user.id,
     name,
     gender: gender || undefined,
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const user = getCurrentUser(req)
+  const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
 
   const body = await req.json().catch(() => null)
@@ -44,20 +44,20 @@ export async function PATCH(req: NextRequest) {
   if (typeof name === 'string') updates.name = name
   if (typeof gender === 'string') updates.gender = gender
 
-  const avatar = updateCustomAvatar(user.id, id, updates)
+  const avatar = await updateCustomAvatar(user.id, id, updates)
   if (!avatar) return NextResponse.json({ error: 'Avatar not found' }, { status: 404 })
   return NextResponse.json({ avatar })
 }
 
 export async function DELETE(req: NextRequest) {
-  const user = getCurrentUser(req)
+  const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
-  const ok = deleteCustomAvatar(user.id, id)
+  const ok = await deleteCustomAvatar(user.id, id)
   if (!ok) return NextResponse.json({ error: 'Avatar not found' }, { status: 404 })
   return NextResponse.json({ ok: true })
 }

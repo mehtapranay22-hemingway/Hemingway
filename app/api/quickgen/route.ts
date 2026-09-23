@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createSession, updateSession } from '@/lib/sessions'
 import { resolveAvatarImage } from '@/lib/avatars'
-import { saveTemporaryImage, publicPathToDataUri } from '@/lib/uploads'
+import { saveTemporaryImage } from '@/lib/uploads'
 import { buildCharacterSheet, submitShot } from '@/lib/seedance'
 import { randomUUID } from 'crypto'
 import { AUTO_CAST_ID, NO_CHARACTER_ID, type ScriptVariant } from '@/lib/types'
@@ -210,14 +210,14 @@ export async function POST(req: NextRequest) {
   // any account exists, onboarding/signup comes after (see app/page.tsx and
   // app/output/page.tsx). The session just starts unowned and gets claimed
   // once they do sign up.
-  const user = getCurrentUser(req)
-  const session = createSession(user?.id)
+  const user = await getCurrentUser(req)
+  const session = await createSession(user?.id)
 
   // Category comes from the client's onboarding profile, not the brief —
   // see buildScriptSystem() above for why. No account/profile yet (the
   // common case for a first-ever generation) falls back to the safe default
   // register instead of blocking.
-  const clientProfile = user ? getClientProfile(user.id) : null
+  const clientProfile = user ? await getClientProfile(user.id) : null
   const category = categoryFlagForIndustry(clientProfile?.industry ?? 'Other')
 
   const isAutoCast = avatarId === AUTO_CAST_ID
@@ -226,7 +226,7 @@ export async function POST(req: NextRequest) {
   // Lightweight memory: this client's own past ads they actually downloaded,
   // fed back in as few-shot examples below — see lib/db.ts for the "why".
   // One query for whichever mode this generation actually is, not both.
-  const pastKept = user ? getRecentKeptAds(user.id, isNoCharacter ? 'cinematic' : 'dialogue', 3) : []
+  const pastKept = user ? await getRecentKeptAds(user.id, isNoCharacter ? 'cinematic' : 'dialogue', 3) : []
 
   // 1. Generate script — cinematic mode writes the Seedance shot list
   // directly (no spoken dialogue, so no separate "script" to write first);
@@ -316,26 +316,21 @@ export async function POST(req: NextRequest) {
     if (!resolvedAvatar) {
       return NextResponse.json({ error: 'Could not resolve a reference photo for the selected avatar' }, { status: 500 })
     }
-    // Custom avatars are stored as relative /avatars/<id>.png paths on this
-    // machine — Seedance's cloud API can't reach a localhost URL at all, so
-    // these get embedded as data: URIs instead of resolved to an absolute
-    // (but unreachable) URL. Real https:// URLs pass through unchanged.
-    characterImageUrls = resolvedAvatar.imageUrls.map(url =>
-      url.startsWith('http') ? url : publicPathToDataUri(url)
-    )
+    // Custom avatars live on Vercel Blob (see lib/avatars.ts) — real
+    // https:// URLs, directly fetchable by Seedance's cloud with no
+    // conversion needed.
+    characterImageUrls = resolvedAvatar.imageUrls
     characterName = resolvedAvatar.name
   }
 
   // 2b. If the user attached a product photo, add it as its own reference —
   // previously this only ever reached the script-writing call, never
   // Seedance, so cutaways showed a hallucinated product even when a real
-  // photo was uploaded. Still saved to disk for the record, but what's sent
-  // to Seedance is a data: URI built directly from the already-in-memory
-  // base64 (same localhost-unreachable problem as avatar photos above).
+  // photo was uploaded. Uploaded to Blob and referenced by its real URL —
+  // same reasoning as the avatar photos above.
   let productImageUrl: string | undefined
   if (imageBase64) {
-    saveTemporaryImage(imageBase64, imageMediaType || 'image/jpeg')
-    productImageUrl = `data:${imageMediaType || 'image/jpeg'};base64,${imageBase64}`
+    productImageUrl = await saveTemporaryImage(imageBase64, imageMediaType || 'image/jpeg')
   }
 
   const referenceImageUrls = [...characterImageUrls, ...(productImageUrl ? [productImageUrl] : [])]
@@ -378,7 +373,7 @@ export async function POST(req: NextRequest) {
   // (one cheap Claude call), but no Seedance cost is ever incurred before
   // payment — writing a script and rendering a video are now genuinely
   // separate cost events.
-  const subscription = user ? getSubscription(user.id) : null
+  const subscription = user ? await getSubscription(user.id) : null
   const isPaid = subscription?.status === 'active'
 
   // A paid account can still be tapped out for the cycle — the real Seedance
@@ -392,7 +387,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!isPaid) {
-    updateSession(session.id, {
+    await updateSession(session.id, {
       scripts: [script],
       ...(analysis ? { briefAnalysis: analysis } : {}),
       renders: [{
@@ -424,7 +419,7 @@ export async function POST(req: NextRequest) {
   })
 
   if ('error' in submitResult) {
-    updateSession(session.id, {
+    await updateSession(session.id, {
       scripts: [script],
       ...(analysis ? { briefAnalysis: analysis } : {}),
       renders: [{
@@ -447,7 +442,7 @@ export async function POST(req: NextRequest) {
 
   // 5. Save everything to session — `renders` kept in sync (no videoUrl yet)
   // purely so the output page's existing "queued" state renders correctly.
-  updateSession(session.id, {
+  await updateSession(session.id, {
     scripts: [script],
     ...(analysis ? { briefAnalysis: analysis } : {}),
     renders: [{

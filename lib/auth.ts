@@ -20,7 +20,7 @@ export function verifyPassword(password: string, hash: string, salt: string): bo
   return timingSafeEqual(candidate, stored)
 }
 
-export function getCurrentUser(req: NextRequest): User | null {
+export async function getCurrentUser(req: NextRequest): Promise<User | null> {
   const token = req.cookies.get(SESSION_COOKIE)?.value
   if (!token) return null
   return getUserByToken(token)
@@ -28,8 +28,8 @@ export function getCurrentUser(req: NextRequest): User | null {
 
 // Logs a user in by minting a session and attaching the cookie to the given
 // response — call this on the response you're about to return from signup/signin.
-export function attachSession(res: NextResponse, userId: string): NextResponse {
-  const { token, expiresAt } = createAuthSession(userId)
+export async function attachSession(res: NextResponse, userId: string): Promise<NextResponse> {
+  const { token, expiresAt } = await createAuthSession(userId)
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
@@ -39,9 +39,9 @@ export function attachSession(res: NextResponse, userId: string): NextResponse {
   return res
 }
 
-export function clearSession(req: NextRequest, res: NextResponse): NextResponse {
+export async function clearSession(req: NextRequest, res: NextResponse): Promise<NextResponse> {
   const token = req.cookies.get(SESSION_COOKIE)?.value
-  if (token) deleteAuthSession(token)
+  if (token) await deleteAuthSession(token)
   res.cookies.set(SESSION_COOKIE, '', { httpOnly: true, sameSite: 'lax', path: '/', expires: new Date(0) })
   return res
 }

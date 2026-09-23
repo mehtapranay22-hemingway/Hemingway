@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'sessionId, brandName, and offer are required' }, { status: 400 })
   }
 
-  const session = getSession(sessionId)
+  const session = await getSession(sessionId)
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
   const brief = { brandName, offer, targetCustomer: targetCustomer || '' }
@@ -85,7 +85,7 @@ Generate 5 distinct script variants using 5 different hook structures. Make the 
       estimatedDurationSeconds: v.estimated_duration_seconds || 20,
     }))
 
-    updateSession(sessionId, { brief, scripts })
+    await updateSession(sessionId, { brief, scripts })
     return NextResponse.json({ scripts })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Script generation failed'

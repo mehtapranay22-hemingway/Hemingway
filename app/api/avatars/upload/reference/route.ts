@@ -3,7 +3,7 @@ import { addAvatarReference } from '@/lib/avatars'
 import { getCurrentUser } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
-  const user = getCurrentUser(req)
+  const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
 
   const body = await req.json().catch(() => null)
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'imageBase64 is required' }, { status: 400 })
   }
 
-  const avatar = addAvatarReference(user.id, id, imageBase64, imageMediaType || 'image/png')
+  const avatar = await addAvatarReference(user.id, id, imageBase64, imageMediaType || 'image/png')
   if (!avatar) return NextResponse.json({ error: 'Avatar not found' }, { status: 404 })
   return NextResponse.json({ avatar })
 }

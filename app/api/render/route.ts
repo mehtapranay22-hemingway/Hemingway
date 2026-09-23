@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'sessionId and scriptIds[] are required' }, { status: 400 })
   }
 
-  const session = getSession(sessionId)
+  const session = await getSession(sessionId)
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   if (!session.scripts) return NextResponse.json({ error: 'No scripts found' }, { status: 400 })
 
@@ -80,6 +80,6 @@ export async function POST(req: NextRequest) {
   }
 
   const existing = session.renders.filter(r => !scriptIds.includes(r.scriptId))
-  const updated = updateSession(sessionId, { renders: [...existing, ...newJobs] })
+  const updated = await updateSession(sessionId, { renders: [...existing, ...newJobs] })
   return NextResponse.json({ renders: updated?.renders })
 }

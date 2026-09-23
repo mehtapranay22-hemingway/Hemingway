@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 }
 
 async function handleStatusPoll(sessionId: string): Promise<NextResponse> {
-  const session = getSession(sessionId)
+  const session = await getSession(sessionId)
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
   // --- Stage 1: Poll HeyGen avatar renders ---
@@ -127,7 +127,7 @@ async function handleStatusPoll(sessionId: string): Promise<NextResponse> {
   // this is the one place real cost gets incurred, checked fresh on every
   // poll rather than trusted from whenever the video was requested.
   if (seedancePipeline?.status === 'awaiting_payment' && seedancePipeline.pendingSubmission) {
-    const owner = session.userId ? getSubscription(session.userId) : null
+    const owner = session.userId ? await getSubscription(session.userId) : null
     const overAllowance = !!owner && owner.videoAllowance != null && owner.videosUsedThisCycle >= owner.videoAllowance
 
     if (owner?.status === 'active' && overAllowance) {
@@ -226,7 +226,7 @@ async function handleStatusPoll(sessionId: string): Promise<NextResponse> {
         // Counted here, not at submission — a render that ultimately fails
         // after retries shouldn't cost the client a video from their
         // allowance, only one that actually finishes successfully does.
-        if (session.userId) incrementVideosUsed(session.userId)
+        if (session.userId) await incrementVideosUsed(session.userId)
       } else {
         await retryOrFail(gate.reason || 'Quality gate failed')
       }
@@ -249,7 +249,7 @@ async function handleStatusPoll(sessionId: string): Promise<NextResponse> {
     }
   }
 
-  const updated = updateSession(sessionId, {
+  const updated = await updateSession(sessionId, {
     renders: updatedRenders,
     ...(pipeline ? { pipeline } : {}),
     ...(seedancePipeline ? { seedancePipeline } : {}),

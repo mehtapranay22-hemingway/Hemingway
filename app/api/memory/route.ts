@@ -9,14 +9,14 @@ import { recordKeptAd } from '@/lib/db'
 // best-effort background signal, not something the download itself should
 // ever be blocked on.
 export async function POST(req: NextRequest) {
-  const user = getCurrentUser(req)
+  const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ ok: false })
 
   const body = await req.json().catch(() => null)
   const sessionId = body?.sessionId
   if (!sessionId) return NextResponse.json({ error: 'sessionId is required' }, { status: 400 })
 
-  const session = getSession(sessionId)
+  const session = await getSession(sessionId)
   if (!session || session.userId !== user.id) {
     return NextResponse.json({ ok: false })
   }
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   // Cinematic-mode scripts always carry an empty cta (see quickgen route) —
   // that's the reliable way to tell the two modes apart after the fact.
-  recordKeptAd({
+  await recordKeptAd({
     userId: user.id,
     sessionId: session.id,
     mode: script.cta ? 'dialogue' : 'cinematic',

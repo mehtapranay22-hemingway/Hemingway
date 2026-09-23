@@ -5,9 +5,9 @@ import { claimSession } from '@/lib/sessions'
 import { INDUSTRIES } from '@/lib/industry'
 
 export async function GET(req: NextRequest) {
-  const user = getCurrentUser(req)
+  const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ completed: false, profile: null })
-  const profile = getClientProfile(user.id)
+  const profile = await getClientProfile(user.id)
   return NextResponse.json({ completed: !!profile, profile })
 }
 
@@ -38,23 +38,23 @@ export async function POST(req: NextRequest) {
   let userId: string
   let isNewSignup = false
 
-  const existingUser = getCurrentUser(req)
+  const existingUser = await getCurrentUser(req)
   if (existingUser) {
     userId = existingUser.id
   } else {
     if (!password || typeof password !== 'string' || password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
     }
-    if (getUserByEmail(email)) {
+    if (await getUserByEmail(email)) {
       return NextResponse.json({ error: 'An account with that email already exists — sign in instead.' }, { status: 409 })
     }
     const { hash, salt } = hashPassword(password)
-    const newUser = createUser(email, hash, salt)
+    const newUser = await createUser(email, hash, salt)
     userId = newUser.id
     isNewSignup = true
   }
 
-  const profile = saveClientProfile({
+  const profile = await saveClientProfile({
     userId,
     fullName,
     businessName,
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   // Claim whatever they generated before creating an account, so their
   // first video shows up in their library instead of vanishing.
   if (sessionId && typeof sessionId === 'string') {
-    claimSession(sessionId, userId)
+    await claimSession(sessionId, userId)
   }
 
   const res = NextResponse.json({ profile })

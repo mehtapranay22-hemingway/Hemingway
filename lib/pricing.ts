@@ -27,7 +27,7 @@ export const TIERS: Tier[] = [
     id: 'minimum',
     name: 'Minimum',
     videoAllowance: 3,
-    monthlyPriceUsd: 49,
+    monthlyPriceUsd: 49.99,
     recommended: false,
     enterprise: false,
     features: [
@@ -40,7 +40,7 @@ export const TIERS: Tier[] = [
     id: 'growth',
     name: 'Growth',
     videoAllowance: 8,
-    monthlyPriceUsd: 139,
+    monthlyPriceUsd: 139.99,
     recommended: true,
     enterprise: false,
     features: [
@@ -54,7 +54,7 @@ export const TIERS: Tier[] = [
     id: 'scale',
     name: 'Scale',
     videoAllowance: 14,
-    monthlyPriceUsd: 189,
+    monthlyPriceUsd: 189.99,
     recommended: false,
     enterprise: false,
     features: [

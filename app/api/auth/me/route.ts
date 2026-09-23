@@ -3,8 +3,8 @@ import { getCurrentUser } from '@/lib/auth'
 import { getClientProfile } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
-  const user = getCurrentUser(req)
+  const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ user: null, profile: null })
-  const profile = getClientProfile(user.id)
+  const profile = await getClientProfile(user.id)
   return NextResponse.json({ user: { id: user.id, email: user.email }, profile })
 }

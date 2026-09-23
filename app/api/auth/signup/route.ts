@@ -13,12 +13,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
   }
 
-  if (getUserByEmail(email)) {
+  if (await getUserByEmail(email)) {
     return NextResponse.json({ error: 'An account with that email already exists' }, { status: 409 })
   }
 
   const { hash, salt } = hashPassword(password)
-  const user = createUser(email, hash, salt)
+  const user = await createUser(email, hash, salt)
 
   const res = NextResponse.json({ user: { id: user.id, email: user.email } })
   return attachSession(res, user.id)
