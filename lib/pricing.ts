@@ -31,7 +31,6 @@ export const TIERS: Tier[] = [
     recommended: false,
     enterprise: false,
     features: [
-      '3 videos a month',
       'UGC-style or cinematic ads',
       'Standard generation queue',
     ],
@@ -44,7 +43,6 @@ export const TIERS: Tier[] = [
     recommended: true,
     enterprise: false,
     features: [
-      '8 videos a month',
       'UGC-style or cinematic ads',
       'Priority generation queue',
       'Saved avatars & product references',
@@ -58,7 +56,6 @@ export const TIERS: Tier[] = [
     recommended: false,
     enterprise: false,
     features: [
-      '14 videos a month',
       'UGC-style or cinematic ads',
       'Priority generation queue',
       'Saved avatars & product references',

@@ -61,7 +61,6 @@ function TierCard({
           <p className={['font-display text-3xl', tier.recommended ? 'text-accent' : 'text-ink'].join(' ')}>
             {credits!.toLocaleString()} credits
           </p>
-          <p className="text-xs text-muted mt-1">≈ {tier.videoAllowance} videos/month</p>
         </div>
       )}
 
@@ -160,8 +159,8 @@ function BillingContent() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Checkout unavailable')
-      // A real Stripe Checkout URL is external (checkout.stripe.com) — the
-      // dev-simulated fallback returns an internal path instead.
+      // A real Lemon Squeezy checkout URL is external — the dev-simulated
+      // fallback returns an internal path instead.
       if (data.checkoutUrl.startsWith('http')) {
         window.location.href = data.checkoutUrl
       } else {
@@ -212,7 +211,7 @@ function BillingContent() {
             <>
               {!configured && (
                 <div className="border border-divider bg-white px-5 py-4 mb-6 text-sm text-muted max-w-xl">
-                  Billing isn&apos;t connected to Stripe yet — subscribing below simulates a successful subscription (dev-only, never happens in production) so the gated flow can be tested end to end.
+                  Billing isn&apos;t connected to Lemon Squeezy yet — subscribing below simulates a successful subscription (dev-only, never happens in production) so the gated flow can be tested end to end.
                 </div>
               )}
 
