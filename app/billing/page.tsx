@@ -233,9 +233,9 @@ function BillingContent() {
                     {subscription.videoAllowance != null && (
                       <div className="mt-4 pt-4 border-t border-divider">
                         <div className="flex items-baseline justify-between mb-2">
-                          <span className="text-xs text-muted">Videos this cycle</span>
+                          <span className="text-xs text-muted">Credits this cycle</span>
                           <span className="text-sm text-ink font-medium">
-                            {subscription.videosUsedThisCycle} / {subscription.videoAllowance}
+                            {creditsForVideos(subscription.videosUsedThisCycle).toLocaleString()} / {creditsForVideos(subscription.videoAllowance).toLocaleString()}
                           </span>
                         </div>
                         <div className="h-1.5 bg-[#EDEAE2] w-full">
