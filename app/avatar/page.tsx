@@ -40,7 +40,7 @@ export default function AvatarPage() {
     return (
       <div className="flex min-h-screen bg-[#F7F5F2]">
         <Sidebar />
-        <div className="ml-56 flex-1 flex items-center justify-center">
+        <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 flex items-center justify-center">
           <div className="text-center max-w-sm">
             <p className="font-display text-2xl text-ink mb-2">Sign in to manage avatars.</p>
             <p className="text-muted text-sm mb-6">Avatars are saved to your account.</p>
@@ -113,12 +113,12 @@ export default function AvatarPage() {
   return (
     <div className="flex min-h-screen bg-[#F7F5F2]">
       <Sidebar />
-      <div className="ml-56 flex-1">
-        <div className="sticky top-0 z-10 bg-[#F7F5F2]/90 backdrop-blur-sm border-b border-[#E8E5DF] px-8 py-3">
+      <div className="lg:ml-56 pt-14 lg:pt-0 flex-1">
+        <div className="sticky top-0 z-10 bg-[#F7F5F2]/90 backdrop-blur-sm border-b border-[#E8E5DF] px-4 sm:px-8 py-3">
           <span className="text-sm text-ink">Avatars</span>
         </div>
 
-        <div className="px-8 py-10 max-w-5xl">
+        <div className="px-4 sm:px-8 py-10 max-w-5xl">
           <h1 className="font-display text-3xl text-ink mb-1">Your avatars.</h1>
           <p className="text-muted text-sm mb-10">
             Upload your own avatar photos — these are the only avatars shown on the picker.

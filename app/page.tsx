@@ -219,9 +219,9 @@ export default function HomePage() {
     <div className="flex min-h-screen bg-[#F7F5F2]">
       <Sidebar />
 
-      <div className="ml-56 flex-1 flex flex-col">
+      <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 flex flex-col">
         {/* Top bar */}
-        <div className="sticky top-0 z-10 bg-[#F7F5F2]/90 backdrop-blur-sm border-b border-[#E8E5DF] px-8 py-3 flex items-center justify-end gap-4">
+        <div className="sticky top-0 z-10 bg-[#F7F5F2]/90 backdrop-blur-sm border-b border-[#E8E5DF] px-4 sm:px-8 py-3 flex items-center justify-end gap-4">
           {auth.user ? (
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2.5">
@@ -245,13 +245,13 @@ export default function HomePage() {
         </div>
 
         {/* Hero prompt */}
-        <div className="flex flex-col items-center justify-center min-h-[58vh] px-8 text-center">
+        <div className="flex flex-col items-center justify-center min-h-[58vh] px-4 sm:px-8 text-center">
           <div className="mb-8">
-            <h1 className="font-display text-5xl text-ink leading-tight mb-2">
+            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl text-ink leading-tight mb-2">
               Let&apos;s make some money{firstName ? ',' : '.'}
             </h1>
             {firstName && (
-              <h1 className="font-display text-5xl leading-tight">
+              <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl leading-tight">
                 <span className="text-accent">{firstName}.</span>
               </h1>
             )}
@@ -398,7 +398,7 @@ export default function HomePage() {
         </div>
 
         {/* Content formats */}
-        <div className="px-8 pb-16">
+        <div className="px-4 sm:px-8 pb-16">
           <div className="flex items-center gap-2 mb-5 text-sm text-[#6B6862]">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <rect x="1" y="1" width="5" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
@@ -410,12 +410,12 @@ export default function HomePage() {
             <span className="text-[#B0ACA5]">— pick a starting point</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {CATEGORIES.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat.prompt)}
-                className="group relative overflow-hidden aspect-[4/3] flex flex-col justify-between bg-[#1A1410] transition-all hover:scale-[1.015] hover:shadow-xl text-left"
+                className="group relative overflow-hidden aspect-[16/10] sm:aspect-[4/3] flex flex-col justify-between bg-[#1A1410] transition-all hover:scale-[1.015] hover:shadow-xl text-left"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

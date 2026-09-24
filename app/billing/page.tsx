@@ -176,7 +176,7 @@ function BillingContent() {
     return (
       <div className="flex min-h-screen bg-[#F7F5F2]">
         <Sidebar />
-        <div className="ml-56 flex-1 flex items-center justify-center">
+        <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 flex items-center justify-center">
           <div className="text-center max-w-sm">
             <p className="font-display text-2xl text-ink mb-2">Sign in to view billing.</p>
             <Link href={`/signin?next=${encodeURIComponent(`/billing?next=${next}`)}`} className="inline-block bg-ink text-cream px-6 py-3 text-sm font-medium hover:bg-accent transition-colors">
@@ -194,7 +194,7 @@ function BillingContent() {
   return (
     <div className="flex min-h-screen bg-[#F7F5F2]">
       <Sidebar />
-      <div className="ml-56 flex-1 px-8 py-10">
+      <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 px-4 sm:px-8 py-10">
         <div className={isActive && !showPlans ? 'max-w-xl' : 'max-w-6xl'}>
           <p className="text-[#B0ACA5] text-xs uppercase tracking-widest font-sans mb-2">Billing</p>
           <h1 className="font-display text-4xl text-ink mb-2">

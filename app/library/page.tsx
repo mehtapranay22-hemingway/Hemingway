@@ -153,7 +153,7 @@ export default function LibraryPage() {
     <div className="flex min-h-screen bg-[#F7F5F2]">
       <Sidebar />
 
-      <div className="ml-56 flex-1 px-8 py-10">
+      <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 px-4 sm:px-8 py-10">
         {/* Header */}
         <div className="max-w-5xl mx-auto">
           <div className="flex items-end justify-between mb-10">

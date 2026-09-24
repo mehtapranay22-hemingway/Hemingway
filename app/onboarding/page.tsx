@@ -119,7 +119,7 @@ function OnboardingForm() {
   }
 
   return (
-    <div className="min-h-screen bg-cream flex justify-center px-8 py-16">
+    <div className="min-h-screen bg-cream flex justify-center px-4 sm:px-8 py-10 sm:py-16">
       <div className="w-full max-w-xl">
         <div className="mb-2 flex items-center gap-2.5">
           <div className="w-7 h-7 bg-ink flex items-center justify-center shrink-0">
@@ -128,7 +128,7 @@ function OnboardingForm() {
           <span className="font-display text-ink text-sm font-semibold tracking-tight">Hemingway</span>
         </div>
 
-        <h1 className="font-display text-4xl text-ink mt-6 mb-2">
+        <h1 className="font-display text-3xl sm:text-4xl text-ink mt-6 mb-2">
           {claimSessionId ? 'Love it? Let’s save it to your account.' : 'Let’s set up your account.'}
         </h1>
         <p className="text-muted text-sm mb-12">

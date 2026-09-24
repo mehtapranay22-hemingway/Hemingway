@@ -35,7 +35,7 @@ function SignInForm() {
   }
 
   return (
-    <div className="min-h-screen bg-cream flex justify-center px-8 py-24">
+    <div className="min-h-screen bg-cream flex justify-center px-4 sm:px-8 py-16 sm:py-24">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center gap-2.5">
           <div className="w-7 h-7 bg-ink flex items-center justify-center shrink-0">

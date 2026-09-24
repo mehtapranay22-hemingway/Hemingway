@@ -141,7 +141,7 @@ function PickAvatar() {
   return (
     <div className="flex min-h-screen bg-[#F7F5F2]">
       <Sidebar />
-      <div className="ml-56 flex-1 pb-32">
+      <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 pb-44 sm:pb-32">
         <div className="sticky top-0 z-10 bg-[#F7F5F2]/90 backdrop-blur-sm border-b border-[#E8E5DF] px-8 py-3 flex items-center gap-3">
           <a href="/" className="text-muted text-sm hover:text-ink transition-colors">← Back</a>
           <span className="text-[#E8E5DF]">/</span>
@@ -274,7 +274,7 @@ function PickAvatar() {
 
       {/* Sticky bottom bar — always visible */}
       {selected && (
-        <div className="fixed bottom-0 left-56 right-0 z-20 bg-white border-t border-[#E8E5DF] px-8 py-4 flex items-center gap-6">
+        <div className="fixed bottom-0 left-0 lg:left-56 right-0 z-20 bg-white border-t border-[#E8E5DF] px-4 sm:px-8 py-4 flex flex-wrap items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-3">
             {selected.avatar_id === AUTO_CAST_ID ? (
               <div className="w-10 h-10 bg-divider flex items-center justify-center text-[#9B9892] shrink-0">
@@ -306,7 +306,7 @@ function PickAvatar() {
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="ml-auto bg-ink text-cream px-8 py-3 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-40 flex items-center gap-3"
+            className="w-full sm:w-auto sm:ml-auto bg-ink text-cream px-8 py-3 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-40 flex items-center justify-center gap-3"
           >
             {generating ? (
               <>
@@ -329,7 +329,7 @@ export default function PickPage() {
     <Suspense fallback={
       <div className="flex min-h-screen bg-[#F7F5F2]">
         <Sidebar />
-        <div className="ml-56 flex-1 flex items-center justify-center">
+        <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 flex items-center justify-center">
           <p className="text-muted text-sm">Loading...</p>
         </div>
       </div>

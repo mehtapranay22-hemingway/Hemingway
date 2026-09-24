@@ -39,7 +39,7 @@ function DescribeForm() {
   return (
     <div className="flex min-h-screen bg-[#F7F5F2]">
       <Sidebar />
-      <div className="ml-56 flex-1">
+      <div className="lg:ml-56 pt-14 lg:pt-0 flex-1">
         <div className="sticky top-0 z-10 bg-[#F7F5F2]/90 backdrop-blur-sm border-b border-[#E8E5DF] px-8 py-3 flex items-center gap-3">
           <a href="/" className="text-muted text-sm hover:text-ink transition-colors">← Avatars</a>
           <span className="text-[#E8E5DF]">/</span>
@@ -124,7 +124,7 @@ export default function DescribePage() {
     <Suspense fallback={
       <div className="flex min-h-screen bg-[#F7F5F2]">
         <Sidebar />
-        <div className="ml-56 flex-1 flex items-center justify-center">
+        <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 flex items-center justify-center">
           <p className="text-muted text-sm">Loading...</p>
         </div>
       </div>

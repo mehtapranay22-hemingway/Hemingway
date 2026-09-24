@@ -151,14 +151,14 @@ function GeneratingScreen({ session }: { session: Session }) {
   const percent = estimateProgress(seedance, pipeline, elapsed)
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-8 py-20">
+    <div className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen flex flex-col items-center justify-center px-4 sm:px-8 py-16 sm:py-20">
       <div className="w-full max-w-xl text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent mb-5">Generating</p>
-        <h1 className="font-display text-6xl text-ink mb-4">Working on it&hellip;</h1>
-        <p className="text-muted text-base mb-14">Generating your video. This usually takes 2–5 minutes.</p>
+        <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl text-ink mb-4">Working on it&hellip;</h1>
+        <p className="text-muted text-base mb-10 sm:mb-14">Generating your video. This usually takes 2–5 minutes.</p>
 
         {hookLine && (
-          <p className="font-display text-3xl text-ink leading-snug mb-14 max-w-lg mx-auto">
+          <p className="font-display text-2xl sm:text-3xl text-ink leading-snug mb-10 sm:mb-14 max-w-lg mx-auto">
             &ldquo;{hookLine}&rdquo;
           </p>
         )}
@@ -421,7 +421,7 @@ function OutputContent() {
     return (
       <div className="flex min-h-screen bg-[#F7F5F2]">
         <Sidebar />
-        <div className="ml-56 flex-1 flex items-center justify-center">
+        <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 flex items-center justify-center">
           <p className="text-muted text-sm">Loading...</p>
         </div>
       </div>
@@ -434,7 +434,7 @@ function OutputContent() {
     return (
       <div className="flex min-h-screen bg-[#F7F5F2]">
         <Sidebar />
-        <div className="ml-56 flex-1">
+        <div className="lg:ml-56 pt-14 lg:pt-0 flex-1">
           <GeneratingScreen session={session!} />
         </div>
       </div>
@@ -444,10 +444,10 @@ function OutputContent() {
   return (
     <div className="flex min-h-screen bg-[#F7F5F2]">
       <Sidebar />
-      <div className="ml-56 flex-1 px-8 py-10">
+      <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 px-4 sm:px-8 py-10">
 
         <div className="max-w-2xl mx-auto mb-10 text-center">
-          <h1 className="font-display text-5xl text-ink mb-2">
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl text-ink mb-2">
             {allDone ? 'Your ad is ready.' : 'Done.'}
           </h1>
           <p className="text-muted text-sm">
@@ -487,7 +487,7 @@ export default function OutputPage() {
     <Suspense fallback={
       <div className="flex min-h-screen bg-[#F7F5F2]">
         <Sidebar />
-        <div className="ml-56 flex-1 flex items-center justify-center">
+        <div className="lg:ml-56 pt-14 lg:pt-0 flex-1 flex items-center justify-center">
           <p className="text-muted text-sm">Loading...</p>
         </div>
       </div>
