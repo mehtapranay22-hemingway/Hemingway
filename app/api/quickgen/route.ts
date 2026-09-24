@@ -9,6 +9,7 @@ import { AUTO_CAST_ID, NO_CHARACTER_ID, type ScriptVariant } from '@/lib/types'
 import { getClientProfile, getSubscription, getRecentKeptAds, type KeptAd } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { categoryFlagForIndustry, type CategoryFlag } from '@/lib/industry'
+import { checkRateLimit, clientIp } from '@/lib/ratelimit'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -211,6 +212,19 @@ export async function POST(req: NextRequest) {
   // app/output/page.tsx). The session just starts unowned and gets claimed
   // once they do sign up.
   const user = await getCurrentUser(req)
+
+  // Script-writing is a real Claude call even for unpaid/anonymous
+  // visitors (Seedance itself stays gated separately below) — this caps
+  // that cost regardless of account state. Keyed by account when signed
+  // in (survives IP changes), by IP otherwise.
+  const rateLimitKey = user ? `quickgen:user:${user.id}` : `quickgen:ip:${clientIp(req)}`
+  const { allowed, retryAfterSeconds } = await checkRateLimit(rateLimitKey, 20, 3600)
+  if (!allowed) {
+    return NextResponse.json({
+      error: 'Too many generation requests. Try again shortly.',
+    }, { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } })
+  }
+
   const session = await createSession(user?.id)
 
   // Category comes from the client's onboarding profile, not the brief —

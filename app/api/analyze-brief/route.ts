@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { checkRateLimit, clientIp } from '@/lib/ratelimit'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -42,6 +43,15 @@ Output strict JSON only, no markdown, no explanation outside the JSON:
 }`
 
 export async function POST(req: NextRequest) {
+  // This runs pre-signup for anyone typing a brief — a real Claude call, so
+  // it needs its own cap independent of account state. 30/hour per IP is
+  // generous for genuine back-and-forth clarification, tight enough to cap
+  // the blast radius of a script hammering it.
+  const { allowed, retryAfterSeconds } = await checkRateLimit(`analyze-brief:${clientIp(req)}`, 30, 3600)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many requests. Try again shortly.' }, { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } })
+  }
+
   const body = await req.json().catch(() => null)
   const { description, hasImage } = body || {}
 

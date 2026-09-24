@@ -166,15 +166,45 @@ export async function pollShot(taskId: string): Promise<{
   }
 }
 
-// Real implementation (once we have live renders to grade): sample a frame
-// and ask Claude vision whether the character stayed consistent, the
-// product/brand is clearly visible, and there are no obvious artifacts.
-// Stubbed to always pass so the full pipeline — including the retry path —
-// can be exercised end-to-end without spending on real generations.
+// Not a visual review — a genuine frame-level check (e.g. asking Claude
+// vision whether the character stayed consistent, the product is clearly
+// visible) needs a still frame extracted from the video, which needs
+// ffmpeg or equivalent. That's not available in a standard Vercel
+// serverless function without adding real infrastructure (a background
+// worker, a dedicated video-processing service), which is a genuine
+// decision to make deliberately, not a quick addition — so this isn't
+// pretending to be that. What it does check for real: the delivered file
+// is actually a playable, non-trivial video and not something Seedance or
+// the Blob upload silently mangled. That's a meaningfully different
+// guarantee than "always pass," even though it can't catch a video that's
+// technically fine but shows the wrong product or a garbled face.
 export async function runQualityGate(
   videoUrl: string,
   _context: { description: string; hookLine: string }
 ): Promise<QualityGateResult> {
-  void videoUrl
-  return { pass: true, checkedAt: new Date().toISOString() }
+  const checkedAt = new Date().toISOString()
+  try {
+    const res = await fetch(videoUrl, { method: 'HEAD' })
+    if (!res.ok) {
+      return { pass: false, checkedAt, reason: `Video URL not reachable (HTTP ${res.status})` }
+    }
+
+    const contentType = res.headers.get('content-type') || ''
+    if (contentType && !contentType.startsWith('video/')) {
+      return { pass: false, checkedAt, reason: `Unexpected content type: ${contentType}` }
+    }
+
+    // A real ~15-30s 9:16 render at Seedance's typical bitrate is several
+    // MB — anything this small is almost certainly a truncated or corrupt
+    // file, not a genuine render. Only enforced when the server actually
+    // reports a length (some don't on HEAD), so this can't false-fail.
+    const contentLength = Number(res.headers.get('content-length') || 0)
+    if (contentLength > 0 && contentLength < 200_000) {
+      return { pass: false, checkedAt, reason: `Video file suspiciously small (${contentLength} bytes) — likely corrupt` }
+    }
+
+    return { pass: true, checkedAt }
+  } catch (err) {
+    return { pass: false, checkedAt, reason: err instanceof Error ? err.message : 'Could not verify the completed video file' }
+  }
 }

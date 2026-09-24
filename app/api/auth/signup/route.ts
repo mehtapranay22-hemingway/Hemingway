@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createUser, getUserByEmail } from '@/lib/db'
 import { hashPassword, attachSession } from '@/lib/auth'
+import { checkRateLimit, clientIp } from '@/lib/ratelimit'
 
 export async function POST(req: NextRequest) {
+  // 10 signups per hour per IP — generous for a real person, tight enough
+  // to blunt scripted account-creation spam.
+  const { allowed, retryAfterSeconds } = await checkRateLimit(`signup:${clientIp(req)}`, 10, 3600)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many signup attempts. Try again shortly.' }, { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } })
+  }
+
   const body = await req.json().catch(() => null)
   const { email, password } = body || {}
 
