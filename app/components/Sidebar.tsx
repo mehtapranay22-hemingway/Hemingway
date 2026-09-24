@@ -88,16 +88,46 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
   )
 }
 
+function VerifyEmailNudge() {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
+
+  async function handleResend() {
+    setState('sending')
+    try {
+      await fetch('/api/auth/resend-verification', { method: 'POST' })
+      setState('sent')
+    } catch {
+      setState('idle')
+    }
+  }
+
+  if (state === 'sent') {
+    return <p className="text-[10px] text-[#8A9B6A] mt-1">Verification email sent — check your inbox.</p>
+  }
+  return (
+    <p className="text-[10px] text-[#B0846B] mt-1">
+      Email not verified ·{' '}
+      <button onClick={handleResend} disabled={state === 'sending'} className="underline hover:text-ink transition-colors disabled:opacity-50">
+        {state === 'sending' ? 'Sending...' : 'Resend'}
+      </button>
+    </p>
+  )
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [email, setEmail] = useState<string | null>(null)
+  const [emailVerified, setEmailVerified] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/me')
       .then(r => r.json())
-      .then(data => setEmail(data.user?.email ?? null))
+      .then(data => {
+        setEmail(data.user?.email ?? null)
+        setEmailVerified(data.user?.emailVerified ?? true)
+      })
       .catch(() => {})
   }, [])
 
@@ -135,6 +165,7 @@ export default function Sidebar() {
               Hemingway
             </p>
           )}
+          {email && !emailVerified && <VerifyEmailNudge />}
         </div>
       </aside>
 
@@ -187,6 +218,7 @@ export default function Sidebar() {
                   Hemingway
                 </p>
               )}
+              {email && !emailVerified && <VerifyEmailNudge />}
             </div>
           </div>
         </div>

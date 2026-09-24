@@ -23,6 +23,16 @@ function ensureSchema(): Promise<void> {
           created_at TEXT NOT NULL
         )
       `
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE`
+      await sql`
+        CREATE TABLE IF NOT EXISTS verification_tokens (
+          token TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          purpose TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `
       await sql`
         CREATE TABLE IF NOT EXISTS auth_sessions (
           token TEXT PRIMARY KEY,
@@ -83,13 +93,21 @@ export type User = {
   email: string
   passwordHash: string
   passwordSalt: string
+  emailVerified: boolean
   createdAt: string
 }
 
-type UserRow = { id: string; email: string; password_hash: string; password_salt: string; created_at: string }
+type UserRow = { id: string; email: string; password_hash: string; password_salt: string; email_verified: boolean; created_at: string }
 
 function rowToUser(row: UserRow): User {
-  return { id: row.id, email: row.email, passwordHash: row.password_hash, passwordSalt: row.password_salt, createdAt: row.created_at }
+  return {
+    id: row.id,
+    email: row.email,
+    passwordHash: row.password_hash,
+    passwordSalt: row.password_salt,
+    emailVerified: row.email_verified,
+    createdAt: row.created_at,
+  }
 }
 
 export async function createUser(email: string, passwordHash: string, passwordSalt: string): Promise<User> {
@@ -102,7 +120,19 @@ export async function createUser(email: string, passwordHash: string, passwordSa
     INSERT INTO users (id, email, password_hash, password_salt, created_at)
     VALUES (${id}, ${normalizedEmail}, ${passwordHash}, ${passwordSalt}, ${createdAt})
   `
-  return { id, email: normalizedEmail, passwordHash, passwordSalt, createdAt }
+  return { id, email: normalizedEmail, passwordHash, passwordSalt, emailVerified: false, createdAt }
+}
+
+export async function markEmailVerified(userId: string): Promise<void> {
+  await ensureSchema()
+  const sql = getSql()
+  await sql`UPDATE users SET email_verified = TRUE WHERE id = ${userId}`
+}
+
+export async function setPasswordHash(userId: string, passwordHash: string, passwordSalt: string): Promise<void> {
+  await ensureSchema()
+  const sql = getSql()
+  await sql`UPDATE users SET password_hash = ${passwordHash}, password_salt = ${passwordSalt} WHERE id = ${userId}`
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
@@ -174,6 +204,57 @@ export async function getUserByToken(token: string): Promise<User | null> {
 export async function deleteAuthSession(token: string): Promise<void> {
   const sql = getSql()
   await sql`DELETE FROM auth_sessions WHERE token = ${token}`
+}
+
+// Called on password reset — a changed password should sign the account out
+// everywhere, not just leave old sessions (e.g. on a device an attacker used) live.
+export async function deleteAllAuthSessions(userId: string): Promise<void> {
+  const sql = getSql()
+  await sql`DELETE FROM auth_sessions WHERE user_id = ${userId}`
+}
+
+// ── Verification tokens (email verify + password reset, one table) ─────
+//
+// Single-use, purpose-scoped tokens. Consuming one deletes it immediately —
+// a reset link or verify link only ever works once.
+
+export type TokenPurpose = 'email_verify' | 'password_reset'
+
+const TOKEN_TTL_MINUTES: Record<TokenPurpose, number> = {
+  email_verify: 60 * 24, // 24h
+  password_reset: 60, // 1h
+}
+
+export async function createVerificationToken(userId: string, purpose: TokenPurpose): Promise<string> {
+  await ensureSchema()
+  const sql = getSql()
+  const token = randomUUID().replace(/-/g, '') + randomUUID().replace(/-/g, '')
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + TOKEN_TTL_MINUTES[purpose] * 60 * 1000)
+  // Only one live token per (user, purpose) at a time — requesting a new
+  // link invalidates any earlier one still sitting unused.
+  await sql`DELETE FROM verification_tokens WHERE user_id = ${userId} AND purpose = ${purpose}`
+  await sql`
+    INSERT INTO verification_tokens (token, user_id, purpose, expires_at, created_at)
+    VALUES (${token}, ${userId}, ${purpose}, ${expiresAt.toISOString()}, ${now.toISOString()})
+  `
+  return token
+}
+
+// Returns the user id the token was issued for, or null if it's missing,
+// expired, or was for a different purpose. Always deletes the token first
+// so it can't be replayed even if the caller errors out afterward.
+export async function consumeVerificationToken(token: string, purpose: TokenPurpose): Promise<string | null> {
+  await ensureSchema()
+  const sql = getSql()
+  const rows = (await sql`
+    DELETE FROM verification_tokens WHERE token = ${token} AND purpose = ${purpose}
+    RETURNING user_id, expires_at
+  `) as { user_id: string; expires_at: string }[]
+  const row = rows[0]
+  if (!row) return null
+  if (new Date(row.expires_at).getTime() < Date.now()) return null
+  return row.user_id
 }
 
 // ── Client profile (per-user onboarding data) ───────────────────────────
