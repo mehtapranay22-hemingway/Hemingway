@@ -6,14 +6,12 @@ import { handleWebhookEvent } from '@/lib/billing'
 // inside handleWebhookEvent() once a real provider is wired in, not cookies.
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
-  const signature = req.headers.get('x-signature')
-  // Lemon Squeezy sends the event name both as a header and in the body's
-  // meta.event_name — the header is authoritative here since it's cheap to
-  // read before parsing, body meta.event_name is the fallback if it's ever
-  // absent (see handleWebhookEvent in lib/billing.ts).
-  const eventNameHeader = req.headers.get('x-event-name')
+  // Paddle signs with Paddle-Signature ("ts=...;h1=...") and carries the
+  // event type in the body itself (event_type), unlike Lemon Squeezy which
+  // split it across a header and the body's meta.
+  const signature = req.headers.get('paddle-signature')
 
-  const result = await handleWebhookEvent(rawBody, signature, eventNameHeader)
+  const result = await handleWebhookEvent(rawBody, signature)
   if (!result.handled) return NextResponse.json({ error: result.error }, { status: 503 })
   return NextResponse.json({ ok: true })
 }

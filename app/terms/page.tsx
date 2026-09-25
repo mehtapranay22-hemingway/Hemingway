@@ -38,8 +38,8 @@ export default function TermsPage() {
         <h2>3. Subscriptions and billing</h2>
         <p>
           Paid plans are billed monthly in advance and renew automatically until cancelled. Payments are
-          processed by Lemon Squeezy, our merchant of record — your purchase is a transaction with Lemon
-          Squeezy Inc., and their terms also apply. Each plan includes a fixed number of video generations
+          processed by Paddle, our merchant of record — your purchase is a transaction with Paddle.com
+          Market Ltd, and their terms also apply. Each plan includes a fixed number of video generations
           per billing cycle (displayed as &quot;credits&quot; in the product); unused credits do not roll over to
           the next cycle. You can cancel anytime from the Billing page to stop future renewals; see our{' '}
           <a href="/refund-policy">Refund Policy</a> for what happens to the current cycle.

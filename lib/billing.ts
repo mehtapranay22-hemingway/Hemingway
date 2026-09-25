@@ -1,23 +1,25 @@
 import { getSubscription, getSubscriptionByProviderId, upsertSubscription, getUserById, type Subscription } from './db'
 import { getTier, type TierId } from './pricing'
-import { lemonSqueezyConfigured, getVariantId, createCheckout, verifyLemonSqueezySignature } from './lemonsqueezy'
+import { paddleConfigured, getPriceId, createCheckout, verifyPaddleSignature } from './paddle'
 
-// ── Billing (Lemon Squeezy) ──────────────────────────────────────────────
+// ── Billing (Paddle) ─────────────────────────────────────────────────────
 //
-// Real Lemon Squeezy subscription billing when LEMONSQUEEZY_API_KEY and
-// LEMONSQUEEZY_STORE_ID are set (see lib/lemonsqueezy.ts); a dev-simulated
-// fallback otherwise so the gated flow (account -> paywall -> unlocked) can
-// be built and tested without a real provider. The dev fallback is
-// hard-blocked outside development. Nothing here ever fakes a successful
-// *webhook* — only the initial "subscribe" action has a dev bypass.
+// Real Paddle subscription billing when PADDLE_API_KEY is set (see
+// lib/paddle.ts); a dev-simulated fallback otherwise so the gated flow
+// (account -> paywall -> unlocked) can be built and tested without a real
+// provider. The dev fallback is hard-blocked outside development. Nothing
+// here ever fakes a successful *webhook* — only the initial "subscribe"
+// action has a dev bypass.
 //
-// Lemon Squeezy is a Merchant of Record — display prices in lib/pricing.ts
-// are copy only; what a customer is actually charged is whatever each
-// Variant is priced at in the Lemon Squeezy dashboard, referenced here only
-// by id (see getVariantId), never a manually-computed amount.
+// Paddle is a Merchant of Record — display prices in lib/pricing.ts are
+// copy only; what a customer is actually charged is whatever each Price is
+// configured for in the Paddle dashboard, referenced here only by id (see
+// getPriceId), never a manually-computed amount. Paddle also bills in USD
+// regardless of seller country — the reason it replaced Paystack, whose
+// South African settlement is ZAR-only.
 
 export function billingConfigured(): boolean {
-  return lemonSqueezyConfigured()
+  return paddleConfigured()
 }
 
 export async function getBillingStatus(userId: string): Promise<Subscription> {
@@ -53,12 +55,12 @@ export async function startCheckout(
       })
       return { checkoutUrl: returnPath || '/billing' }
     }
-    return { error: 'Billing isn’t configured yet — set LEMONSQUEEZY_API_KEY and LEMONSQUEEZY_STORE_ID in .env.local.' }
+    return { error: 'Billing isn’t configured yet — set PADDLE_API_KEY in .env.local.' }
   }
 
-  const variantId = getVariantId(tier.id as TierId)
-  if (!variantId) {
-    return { error: `No Lemon Squeezy Variant configured for "${tier.name}" — create it in the Lemon Squeezy dashboard and set the matching env var (see .env.local.example).` }
+  const priceId = getPriceId(tier.id as TierId)
+  if (!priceId) {
+    return { error: `No Paddle Price configured for "${tier.name}" — create it in the Paddle dashboard and set the matching env var (see .env.local.example).` }
   }
 
   const user = await getUserById(userId)
@@ -69,8 +71,8 @@ export async function startCheckout(
 
   const result = await createCheckout({
     email: user.email,
-    variantId,
-    redirectUrl: `${base}${target}`,
+    priceId,
+    returnUrl: `${base}${target}`,
     customData: { userId, tier: tier.id },
   })
 
@@ -78,64 +80,58 @@ export async function startCheckout(
   return { checkoutUrl: result.checkoutUrl }
 }
 
-function mapTierByVariant(variantId: string | number | undefined): ReturnType<typeof getTier> {
-  if (variantId == null) return undefined
-  const id = String(variantId)
+function mapTierByPriceId(priceId: string | undefined): ReturnType<typeof getTier> {
+  if (!priceId) return undefined
   for (const t of ['minimum', 'growth', 'scale'] as const) {
-    if (getVariantId(t) === id) return getTier(t)
+    if (getPriceId(t) === priceId) return getTier(t)
   }
   return undefined
 }
 
-type LemonSqueezyWebhookPayload = {
-  meta?: { event_name?: string; custom_data?: Record<string, string> }
+type PaddleWebhookPayload = {
+  event_type?: string
   data?: {
     id?: string
-    attributes?: {
-      status?: string
-      renews_at?: string | null
-      ends_at?: string | null
-      customer_id?: number
-      variant_id?: number
-    }
+    status?: string
+    customer_id?: string
+    current_billing_period?: { starts_at?: string | null; ends_at?: string | null } | null
+    custom_data?: Record<string, string> | null
+    items?: { price?: { id?: string } }[]
   }
 }
 
 export async function handleWebhookEvent(
   rawBody: string,
-  signature: string | null,
-  eventNameHeader?: string | null
+  signature: string | null
 ): Promise<{ handled: boolean; error?: string }> {
   if (!billingConfigured()) {
     return { handled: false, error: 'Billing isn’t configured yet.' }
   }
-  if (!verifyLemonSqueezySignature(rawBody, signature)) {
+  if (!verifyPaddleSignature(rawBody, signature)) {
     // Never trust an unverified payload.
     return { handled: false, error: 'Invalid webhook signature' }
   }
 
-  let payload: LemonSqueezyWebhookPayload
+  let payload: PaddleWebhookPayload
   try {
     payload = JSON.parse(rawBody)
   } catch {
     return { handled: false, error: 'Invalid webhook body' }
   }
 
-  // Lemon Squeezy sends the event name both as the X-Event-Name header and
-  // in the body's meta.event_name — the header is authoritative (cheaper to
-  // read, and confirmed by their docs to always carry the same value),
-  // body meta.event_name is the fallback if the header is ever missing.
-  const eventName = eventNameHeader || payload.meta?.event_name
-  const customData = payload.meta?.custom_data || {}
-  const attrs = payload.data?.attributes || {}
-  const providerCustomerId = attrs.customer_id != null ? String(attrs.customer_id) : undefined
-  const providerSubscriptionId = payload.data?.id
+  const eventName = payload.event_type
+  const data = payload.data || {}
+  const customData = data.custom_data || {}
+  const providerCustomerId = data.customer_id
+  const providerSubscriptionId = data.id
+  const priceId = data.items?.[0]?.price?.id
+  const periodEnd = data.current_billing_period?.ends_at ?? null
 
-  // custom_data (set at checkout — see startCheckout above) is echoed back
-  // on every Order/Subscription/License event tied to that checkout, per
-  // Lemon Squeezy's own docs — reliable enough to be the primary lookup.
-  // Falling back to the stored Lemon Squeezy customer id covers the rare
-  // case it doesn't round-trip on some later event.
+  // custom_data (set at checkout — see startCheckout above) propagates from
+  // the transaction onto the subscription it creates, and onto renewals of
+  // it, per Paddle's docs — reliable enough to be the primary lookup.
+  // Falling back to the stored Paddle customer id covers the rare case it
+  // doesn't round-trip on some later event.
   async function resolveUserId(): Promise<string | undefined> {
     if (customData.userId) return customData.userId
     if (providerCustomerId) {
@@ -146,73 +142,59 @@ export async function handleWebhookEvent(
   }
 
   switch (eventName) {
-    case 'subscription_created': {
+    case 'subscription.created': {
       const userId = await resolveUserId()
-      const tier = customData.tier ? getTier(customData.tier) : mapTierByVariant(attrs.variant_id)
+      const tier = customData.tier ? getTier(customData.tier) : mapTierByPriceId(priceId)
       if (!userId || !tier) break
 
       await upsertSubscription(userId, {
         plan: tier.id,
         status: 'active',
-        provider: 'lemonsqueezy',
+        provider: 'paddle',
         providerCustomerId,
         providerSubscriptionId,
-        currentPeriodEnd: attrs.renews_at || null,
+        currentPeriodEnd: periodEnd,
         videoAllowance: tier.videoAllowance,
         videosUsedThisCycle: 0,
       })
       break
     }
 
-    // Fires for both the very first subscription payment and every
-    // automatic renewal (Lemon Squeezy changed this to include first
-    // payments too — there's no separate "renewal only" event anymore).
-    // Unused videos don't roll over, so usage only resets when the
-    // renewal date this event carries is actually later than what's
-    // already stored — the first payment's renews_at is the same value
-    // subscription_created just set moments earlier, so it's correctly a
-    // no-op here; only a genuine renewal advances it further.
-    case 'subscription_payment_success': {
+    // Fires on plan changes, status changes, AND every renewal (Paddle
+    // rolls current_billing_period forward on each successful renewal
+    // rather than sending a separate "payment succeeded" event with its own
+    // semantics). Unused videos don't roll over, so usage only resets when
+    // the period end this event carries is actually later than what's
+    // already stored — a same-cycle update (e.g. a status change) is
+    // correctly a no-op here; only a genuine renewal advances it further.
+    case 'subscription.updated':
+    case 'subscription.activated': {
       const userId = await resolveUserId()
       if (!userId) break
-
       const existing = await getSubscription(userId)
-      const newRenewsAt = attrs.renews_at || null
+      const tier = mapTierByPriceId(priceId)
+
       const isNewCycle = !existing.currentPeriodEnd
-        || (!!newRenewsAt && new Date(newRenewsAt).getTime() > new Date(existing.currentPeriodEnd).getTime())
+        || (!!periodEnd && new Date(periodEnd).getTime() > new Date(existing.currentPeriodEnd).getTime())
+
+      const status = data.status === 'active' || data.status === 'trialing' ? 'active'
+        : data.status === 'past_due' ? 'past_due'
+        : data.status === 'canceled' || data.status === 'paused' ? 'canceled'
+        : existing.status
 
       await upsertSubscription(userId, {
-        status: 'active',
-        provider: 'lemonsqueezy',
+        status,
+        provider: 'paddle',
         providerCustomerId: providerCustomerId || existing.providerCustomerId,
         providerSubscriptionId: providerSubscriptionId || existing.providerSubscriptionId,
-        currentPeriodEnd: newRenewsAt || existing.currentPeriodEnd,
+        currentPeriodEnd: periodEnd ?? existing.currentPeriodEnd,
+        ...(tier ? { plan: tier.id, videoAllowance: tier.videoAllowance } : {}),
         ...(isNewCycle ? { videosUsedThisCycle: 0 } : {}),
       })
       break
     }
 
-    case 'subscription_updated': {
-      const userId = await resolveUserId()
-      if (!userId) break
-      const existing = await getSubscription(userId)
-      const tier = mapTierByVariant(attrs.variant_id)
-
-      const status = attrs.status === 'active' || attrs.status === 'on_trial' ? 'active'
-        : attrs.status === 'past_due' || attrs.status === 'unpaid' ? 'past_due'
-        : attrs.status === 'cancelled' || attrs.status === 'expired' ? 'canceled'
-        : existing.status
-
-      await upsertSubscription(userId, {
-        status,
-        currentPeriodEnd: attrs.renews_at ?? existing.currentPeriodEnd,
-        ...(tier ? { plan: tier.id, videoAllowance: tier.videoAllowance } : {}),
-      })
-      break
-    }
-
-    case 'subscription_cancelled':
-    case 'subscription_expired': {
+    case 'subscription.canceled': {
       const userId = await resolveUserId()
       if (!userId) break
       await upsertSubscription(userId, { status: 'canceled' })

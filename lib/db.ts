@@ -329,8 +329,8 @@ export async function saveClientProfile(profile: {
 
 // ── Subscription (billing state — provider-agnostic) ───────────────────────
 //
-// This table only tracks *state*; lib/billing.ts owns the actual Lemon
-// Squeezy calls. Every account gets an implicit 'free' / 'none' row (see
+// This table only tracks *state*; lib/billing.ts owns the actual Paddle
+// calls. Every account gets an implicit 'free' / 'none' row (see
 // getSubscription's default) until a real subscription is activated.
 
 export type SubscriptionStatus = 'none' | 'active' | 'trialing' | 'past_due' | 'canceled'
@@ -421,7 +421,7 @@ export async function upsertSubscription(
   return next
 }
 
-// Finds the subscription row owned by a given Lemon Squeezy customer id —
+// Finds the subscription row owned by a given Paddle customer id —
 // webhooks identify accounts by that id, not our own user id, so this is
 // how an incoming event maps back to a user.
 export async function getSubscriptionByProviderId(providerCustomerId: string): Promise<Subscription | null> {

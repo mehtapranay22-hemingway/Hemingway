@@ -19,7 +19,7 @@ export default function PrivacyPage() {
           <li><strong>Business profile</strong> — full name, business name, industry, and company size you give us during onboarding.</li>
           <li><strong>Content you provide</strong> — ad briefs, product descriptions, uploaded product/avatar images, and any custom avatars you create.</li>
           <li><strong>Generated content</strong> — the scripts and videos Hemingway produces for you, stored so you can view and download them later.</li>
-          <li><strong>Billing data</strong> — your subscription plan and status. Card details are handled entirely by Lemon Squeezy; we never see or store your card number.</li>
+          <li><strong>Billing data</strong> — your subscription plan and status. Card details are handled entirely by Paddle; we never see or store your card number.</li>
           <li><strong>Usage data</strong> — basic technical data like IP address and timestamps, used for rate-limiting and abuse prevention.</li>
         </ul>
       </section>
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
         <ul>
           <li><strong>Anthropic</strong> — processes your brief text to generate ad scripts</li>
           <li><strong>BytePlus / ByteDance (Seedance)</strong> — processes your brief, images, and script to generate video</li>
-          <li><strong>Lemon Squeezy</strong> — our merchant of record; handles payment, your card details, and receipts</li>
+          <li><strong>Paddle</strong> — our merchant of record; handles payment, your card details, and receipts</li>
           <li><strong>Resend</strong> — sends verification, password-reset, and transactional email on our behalf</li>
           <li><strong>Vercel</strong> — hosts the application and stores uploaded images and generated videos (Vercel Blob)</li>
           <li><strong>Neon</strong> — hosts our database (account, profile, and subscription data)</li>

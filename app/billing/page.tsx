@@ -6,6 +6,16 @@ import Link from 'next/link'
 import Sidebar from '../components/Sidebar'
 import { TIERS, creditsForVideos, type Tier } from '@/lib/pricing'
 
+declare global {
+  interface Window {
+    Paddle?: {
+      Environment: { set: (env: 'sandbox' | 'production') => void }
+      Initialize: (opts: { token: string }) => void
+      Checkout: { open: (opts: { transactionId: string }) => void }
+    }
+  }
+}
+
 type Subscription = {
   plan: string
   status: string
@@ -132,6 +142,25 @@ function BillingContent() {
   const [loadingTier, setLoadingTier] = useState<string | null>(null)
   const [showPlans, setShowPlans] = useState(false)
 
+  // Paddle's hosted checkout isn't an external page like Lemon Squeezy's was
+  // — /api/billing/checkout returns a same-origin URL (this page, plus a
+  // ?_ptxn=<transaction id> param) meant to be opened via Paddle.js's
+  // overlay, not navigated to directly. Load the SDK once on mount so it's
+  // ready by the time someone clicks Subscribe.
+  useEffect(() => {
+    const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
+    if (!token || window.Paddle) return
+    const script = document.createElement('script')
+    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js'
+    script.onload = () => {
+      if (process.env.NEXT_PUBLIC_PADDLE_ENV !== 'production') {
+        window.Paddle!.Environment.set('sandbox')
+      }
+      window.Paddle!.Initialize({ token })
+    }
+    document.body.appendChild(script)
+  }, [])
+
   useEffect(() => {
     fetch('/api/billing/status')
       .then(r => {
@@ -158,9 +187,19 @@ function BillingContent() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Checkout unavailable')
-      // A real Lemon Squeezy checkout URL is external — the dev-simulated
-      // fallback returns an internal path instead.
-      if (data.checkoutUrl.startsWith('http')) {
+
+      // A real Paddle checkout carries a transaction id in ?_ptxn= — open
+      // it in the Paddle.js overlay rather than navigating there (it's a
+      // same-origin URL, not an external hosted page). The dev-simulated
+      // fallback has no _ptxn and returns a plain internal path instead.
+      const txnId = data.checkoutUrl.startsWith('http')
+        ? new URL(data.checkoutUrl).searchParams.get('_ptxn')
+        : null
+
+      if (txnId && window.Paddle) {
+        window.Paddle.Checkout.open({ transactionId: txnId })
+        setLoadingTier(null)
+      } else if (data.checkoutUrl.startsWith('http')) {
         window.location.href = data.checkoutUrl
       } else {
         router.push(data.checkoutUrl)
@@ -210,7 +249,7 @@ function BillingContent() {
             <>
               {!configured && (
                 <div className="border border-divider bg-white px-5 py-4 mb-6 text-sm text-muted max-w-xl">
-                  Billing isn&apos;t connected to Lemon Squeezy yet — subscribing below simulates a successful subscription (dev-only, never happens in production) so the gated flow can be tested end to end.
+                  Billing isn&apos;t connected to Paddle yet — subscribing below simulates a successful subscription (dev-only, never happens in production) so the gated flow can be tested end to end.
                 </div>
               )}
 
