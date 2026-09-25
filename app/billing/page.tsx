@@ -14,8 +14,7 @@ type Subscription = {
   videosUsedThisCycle: number
 }
 
-// TODO: swap for the real support address before going live.
-const CONTACT_EMAIL = 'hello@hemingway.app'
+const CONTACT_EMAIL = 'support@hemingwayengine.com'
 
 function CheckIcon() {
   return (
@@ -278,6 +277,13 @@ function BillingContent() {
               )}
             </>
           )}
+
+          <div className="flex flex-wrap gap-5 text-xs text-muted mt-16 pt-6 border-t border-divider">
+            <Link href="/terms" className="hover:text-ink transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-ink transition-colors">Privacy</Link>
+            <Link href="/refund-policy" className="hover:text-ink transition-colors">Refunds</Link>
+            <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-ink transition-colors">Contact</a>
+          </div>
         </div>
       </div>
     </div>
