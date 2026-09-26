@@ -11,9 +11,30 @@ declare global {
     Paddle?: {
       Environment: { set: (env: 'sandbox' | 'production') => void }
       Initialize: (opts: { token: string }) => void
-      Checkout: { open: (opts: { transactionId: string }) => void }
+      Checkout: {
+        open: (opts: {
+          transactionId: string
+          settings?: { displayMode?: 'overlay' | 'inline'; variant?: 'one-page' | 'multi-page' }
+        }) => void
+      }
+      // Response shape per Paddle's Pricing Preview API — matches at the
+      // time this was written; worth a quick live sanity check if prices
+      // ever come back empty instead of throwing.
+      PricePreview: (opts: { items: { priceId: string; quantity: number }[] }) => Promise<{
+        data: { details: { lineItems: { price: { id: string }; formattedTotals: { total: string } }[] } }
+      }>
     }
   }
+}
+
+// Client-side mirrors of the server-only PADDLE_PRICE_* vars (lib/paddle.ts)
+// — price ids aren't secret, just catalog identifiers, so a NEXT_PUBLIC_
+// duplicate is fine. Used only to fetch a localized/formatted price preview;
+// the actual charge is always determined server-side by the same ids.
+const PADDLE_PRICE_ID: Record<string, string | undefined> = {
+  minimum: process.env.NEXT_PUBLIC_PADDLE_PRICE_MINIMUM,
+  growth: process.env.NEXT_PUBLIC_PADDLE_PRICE_GROWTH,
+  scale: process.env.NEXT_PUBLIC_PADDLE_PRICE_SCALE,
 }
 
 type Subscription = {
@@ -38,10 +59,12 @@ function TierCard({
   tier,
   onSubscribe,
   loadingTier,
+  localizedPrice,
 }: {
   tier: Tier
   onSubscribe: (tierId: string) => void
   loadingTier: string | null
+  localizedPrice?: string
 }) {
   const credits = tier.videoAllowance != null ? creditsForVideos(tier.videoAllowance) : null
 
@@ -79,7 +102,7 @@ function TierCard({
         ) : (
           <p className="text-sm text-ink">
             <span className={['font-display text-2xl', tier.recommended ? 'text-accent' : 'text-ink'].join(' ')}>
-              ${tier.monthlyPriceUsd}
+              {localizedPrice ?? `$${tier.monthlyPriceUsd}`}
             </span>
             <span className="text-muted"> /month</span>
           </p>
@@ -118,11 +141,25 @@ function TierCard({
   )
 }
 
-function PricingGrid({ onSubscribe, loadingTier }: { onSubscribe: (tierId: string) => void; loadingTier: string | null }) {
+function PricingGrid({
+  onSubscribe,
+  loadingTier,
+  localizedPrices,
+}: {
+  onSubscribe: (tierId: string) => void
+  loadingTier: string | null
+  localizedPrices: Record<string, string>
+}) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {TIERS.map(tier => (
-        <TierCard key={tier.id} tier={tier} onSubscribe={onSubscribe} loadingTier={loadingTier} />
+        <TierCard
+          key={tier.id}
+          tier={tier}
+          onSubscribe={onSubscribe}
+          loadingTier={loadingTier}
+          localizedPrice={localizedPrices[tier.id]}
+        />
       ))}
     </div>
   )
@@ -141,6 +178,7 @@ function BillingContent() {
   const [error, setError] = useState('')
   const [loadingTier, setLoadingTier] = useState<string | null>(null)
   const [showPlans, setShowPlans] = useState(false)
+  const [localizedPrices, setLocalizedPrices] = useState<Record<string, string>>({})
 
   // Paddle's hosted checkout isn't an external page like Lemon Squeezy's was
   // — /api/billing/checkout returns a same-origin URL (this page, plus a
@@ -157,6 +195,27 @@ function BillingContent() {
         window.Paddle!.Environment.set('sandbox')
       }
       window.Paddle!.Initialize({ token })
+
+      // Localized/tax-aware price display — Paddle auto-detects the
+      // visitor's country from their IP and returns already-formatted
+      // totals, so no currency math or formatting happens on our side.
+      // Falls back to the flat USD figures in lib/pricing.ts if this
+      // fails for any reason (e.g. an unconfigured price id).
+      const items = Object.entries(PADDLE_PRICE_ID)
+        .filter((entry): entry is [string, string] => !!entry[1])
+        .map(([, priceId]) => ({ priceId, quantity: 1 }))
+      if (items.length === 0) return
+
+      window.Paddle!.PricePreview({ items })
+        .then(res => {
+          const byTier: Record<string, string> = {}
+          for (const line of res.data.details.lineItems) {
+            const tierId = Object.keys(PADDLE_PRICE_ID).find(id => PADDLE_PRICE_ID[id] === line.price.id)
+            if (tierId) byTier[tierId] = line.formattedTotals.total
+          }
+          setLocalizedPrices(byTier)
+        })
+        .catch(() => {})
     }
     document.body.appendChild(script)
   }, [])
@@ -197,7 +256,10 @@ function BillingContent() {
         : null
 
       if (txnId && window.Paddle) {
-        window.Paddle.Checkout.open({ transactionId: txnId })
+        window.Paddle.Checkout.open({
+          transactionId: txnId,
+          settings: { displayMode: 'overlay', variant: 'one-page' },
+        })
         setLoadingTier(null)
       } else if (data.checkoutUrl.startsWith('http')) {
         window.location.href = data.checkoutUrl
@@ -311,7 +373,7 @@ function BillingContent() {
                       ← Back to your plan
                     </button>
                   )}
-                  <PricingGrid onSubscribe={handleSubscribe} loadingTier={loadingTier} />
+                  <PricingGrid onSubscribe={handleSubscribe} loadingTier={loadingTier} localizedPrices={localizedPrices} />
                 </>
               )}
             </>
