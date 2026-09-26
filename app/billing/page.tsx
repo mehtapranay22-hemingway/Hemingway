@@ -17,11 +17,11 @@ declare global {
           settings?: { displayMode?: 'overlay' | 'inline'; variant?: 'one-page' | 'multi-page' }
         }) => void
       }
-      // Response shape per Paddle's Pricing Preview API — matches at the
-      // time this was written; worth a quick live sanity check if prices
-      // ever come back empty instead of throwing.
+      // Response shape confirmed live against the REST pricing-preview
+      // endpoint (snake_case, not camelCase — Paddle.js passes the API
+      // response through largely as-is rather than normalizing casing).
       PricePreview: (opts: { items: { priceId: string; quantity: number }[] }) => Promise<{
-        data: { details: { lineItems: { price: { id: string }; formattedTotals: { total: string } }[] } }
+        data: { details: { line_items: { price: { id: string }; formatted_totals: { total: string } }[] } }
       }>
     }
   }
@@ -209,13 +209,13 @@ function BillingContent() {
       window.Paddle!.PricePreview({ items })
         .then(res => {
           const byTier: Record<string, string> = {}
-          for (const line of res.data.details.lineItems) {
+          for (const line of res.data.details.line_items) {
             const tierId = Object.keys(PADDLE_PRICE_ID).find(id => PADDLE_PRICE_ID[id] === line.price.id)
-            if (tierId) byTier[tierId] = line.formattedTotals.total
+            if (tierId) byTier[tierId] = line.formatted_totals.total
           }
           setLocalizedPrices(byTier)
         })
-        .catch(() => {})
+        .catch(err => console.error('[billing] price preview failed', err))
     }
     document.body.appendChild(script)
   }, [])
