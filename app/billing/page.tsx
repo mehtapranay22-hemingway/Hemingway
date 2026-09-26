@@ -17,12 +17,11 @@ declare global {
           settings?: { displayMode?: 'overlay' | 'inline'; variant?: 'one-page' | 'multi-page' }
         }) => void
       }
-      // Response shape confirmed live against the REST pricing-preview
-      // endpoint (snake_case, not camelCase — Paddle.js passes the API
-      // response through largely as-is rather than normalizing casing).
-      PricePreview: (opts: { items: { priceId: string; quantity: number }[] }) => Promise<{
-        data: { details: { line_items: { price: { id: string }; formatted_totals: { total: string } }[] } }
-      }>
+      // Response shape has been wrong twice from memory/docs now (tried
+      // camelCase, then the REST API's snake_case) — using `unknown` and
+      // parsing defensively at the call site instead of asserting a shape
+      // we're not actually sure of.
+      PricePreview: (opts: { items: { priceId: string; quantity: number }[] }) => Promise<unknown>
     }
   }
 }
@@ -208,10 +207,32 @@ function BillingContent() {
 
       window.Paddle!.PricePreview({ items })
         .then(res => {
+          // Logged unconditionally (not just on failure) until this is
+          // confirmed stable live — two prior guesses at the response
+          // shape (camelCase, then the REST API's snake_case) were both
+          // wrong, so trust this over any assumption in the code.
+          console.log('[billing] price preview raw response', JSON.stringify(res))
+
+          // Try every casing/nesting combination that's plausible rather
+          // than asserting one — whichever one actually has data wins.
+          const r = res as Record<string, any>
+          const lineItems =
+            r?.data?.details?.line_items ??
+            r?.data?.details?.lineItems ??
+            r?.details?.line_items ??
+            r?.details?.lineItems
+
+          if (!Array.isArray(lineItems)) {
+            console.error('[billing] price preview: no line items array found in response shape above')
+            return
+          }
+
           const byTier: Record<string, string> = {}
-          for (const line of res.data.details.line_items) {
-            const tierId = Object.keys(PADDLE_PRICE_ID).find(id => PADDLE_PRICE_ID[id] === line.price.id)
-            if (tierId) byTier[tierId] = line.formatted_totals.total
+          for (const line of lineItems) {
+            const priceId = line?.price?.id
+            const total = line?.formatted_totals?.total ?? line?.formattedTotals?.total
+            const tierId = Object.keys(PADDLE_PRICE_ID).find(id => PADDLE_PRICE_ID[id] === priceId)
+            if (tierId && total) byTier[tierId] = total
           }
           setLocalizedPrices(byTier)
         })
