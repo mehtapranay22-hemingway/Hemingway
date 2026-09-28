@@ -1,6 +1,9 @@
 import LegalLayout from '../components/LegalLayout'
 
-export const metadata = { title: 'Refund Policy — Hemingway' }
+export const metadata = {
+  title: 'Refund Policy — Hemingway',
+  alternates: { canonical: '/refund-policy' },
+}
 
 export default function RefundPolicyPage() {
   return (

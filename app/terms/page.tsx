@@ -1,6 +1,9 @@
 import LegalLayout from '../components/LegalLayout'
 
-export const metadata = { title: 'Terms of Service — Hemingway' }
+export const metadata = {
+  title: 'Terms of Service — Hemingway',
+  alternates: { canonical: '/terms' },
+}
 
 export default function TermsPage() {
   return (

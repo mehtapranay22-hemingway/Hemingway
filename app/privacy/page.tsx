@@ -1,6 +1,9 @@
 import LegalLayout from '../components/LegalLayout'
 
-export const metadata = { title: 'Privacy Policy — Hemingway' }
+export const metadata = {
+  title: 'Privacy Policy — Hemingway',
+  alternates: { canonical: '/privacy' },
+}
 
 export default function PrivacyPage() {
   return (
