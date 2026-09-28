@@ -42,7 +42,17 @@ export async function cancelSubscription(userId: string): Promise<{ ok: true } |
   }
 
   if (!sub.providerSubscriptionId) return { error: 'No subscription found with your payment provider.' }
-  return paddleCancelSubscription(sub.providerSubscriptionId)
+
+  const result = await paddleCancelSubscription(sub.providerSubscriptionId)
+  if ('error' in result && /not found/i.test(result.error)) {
+    // The id we have on file doesn't exist on Paddle's side (e.g. a
+    // sandbox-era subscription left over from before a switch to live) —
+    // nothing there can ever charge this account again, so self-heal by
+    // clearing it locally instead of surfacing a confusing provider error.
+    await upsertSubscription(userId, { status: 'canceled' })
+    return { ok: true }
+  }
+  return result
 }
 
 const DEV_SIMULATED_PLAN_DAYS = 30
