@@ -10,7 +10,10 @@ declare global {
   interface Window {
     Paddle?: {
       Environment: { set: (env: 'sandbox' | 'production') => void }
-      Initialize: (opts: { token: string }) => void
+      // pwCustomer enables Paddle Retain (dunning/cancellation-recovery)
+      // for the signed-in customer — omit it entirely for a visitor who
+      // has never subscribed (no Paddle customer id exists for them yet).
+      Initialize: (opts: { token: string; pwCustomer?: { id: string } }) => void
       Checkout: {
         open: (opts: {
           transactionId: string
@@ -42,6 +45,7 @@ type Subscription = {
   currentPeriodEnd: string | null
   videoAllowance: number | null
   videosUsedThisCycle: number
+  providerCustomerId: string | null
 }
 
 const CONTACT_EMAIL = 'support@hemingwayengine.com'
@@ -179,12 +183,32 @@ function BillingContent() {
   const [showPlans, setShowPlans] = useState(false)
   const [localizedPrices, setLocalizedPrices] = useState<Record<string, string>>({})
 
+  // Billing status is fetched first so we know the signed-in customer's
+  // Paddle customer id (for Retain's pwCustomer, below) before Paddle.js
+  // ever initializes — Initialize can't be reconfigured after the fact.
+  useEffect(() => {
+    fetch('/api/billing/status')
+      .then(r => {
+        if (r.status === 401) { setSignedOut(true); return null }
+        return r.json()
+      })
+      .then(data => {
+        if (!data) return
+        setSubscription(data.subscription)
+        setConfigured(data.billingConfigured)
+      })
+      .catch(() => setError('Could not load billing status'))
+      .finally(() => setLoading(false))
+  }, [])
+
   // Paddle's hosted checkout isn't an external page like Lemon Squeezy's was
   // — /api/billing/checkout returns a same-origin URL (this page, plus a
   // ?_ptxn=<transaction id> param) meant to be opened via Paddle.js's
-  // overlay, not navigated to directly. Load the SDK once on mount so it's
-  // ready by the time someone clicks Subscribe.
+  // overlay, not navigated to directly. Load the SDK once loading has
+  // resolved (whether or not someone's signed in / already subscribed) so
+  // it's ready by the time someone clicks Subscribe.
   useEffect(() => {
+    if (loading) return
     const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
     if (!token || window.Paddle) return
     const script = document.createElement('script')
@@ -193,7 +217,13 @@ function BillingContent() {
       if (process.env.NEXT_PUBLIC_PADDLE_ENV !== 'production') {
         window.Paddle!.Environment.set('sandbox')
       }
-      window.Paddle!.Initialize({ token })
+      // Only an existing Paddle customer (someone who's subscribed before)
+      // has a providerCustomerId — a brand-new visitor gets no pwCustomer,
+      // which is fine, Retain only matters for existing customers anyway.
+      const pwCustomer = subscription?.providerCustomerId
+        ? { id: subscription.providerCustomerId }
+        : undefined
+      window.Paddle!.Initialize({ token, ...(pwCustomer ? { pwCustomer } : {}) })
 
       // Localized/tax-aware price display — Paddle auto-detects the
       // visitor's country from their IP and returns already-formatted
@@ -239,22 +269,7 @@ function BillingContent() {
         .catch(err => console.error('[billing] price preview failed', err))
     }
     document.body.appendChild(script)
-  }, [])
-
-  useEffect(() => {
-    fetch('/api/billing/status')
-      .then(r => {
-        if (r.status === 401) { setSignedOut(true); return null }
-        return r.json()
-      })
-      .then(data => {
-        if (!data) return
-        setSubscription(data.subscription)
-        setConfigured(data.billingConfigured)
-      })
-      .catch(() => setError('Could not load billing status'))
-      .finally(() => setLoading(false))
-  }, [])
+  }, [loading, subscription])
 
   async function handleSubscribe(tierId: string) {
     setLoadingTier(tierId)
