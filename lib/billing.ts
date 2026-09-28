@@ -1,6 +1,6 @@
 import { getSubscription, getSubscriptionByProviderId, upsertSubscription, getUserById, type Subscription } from './db'
 import { getTier, type TierId } from './pricing'
-import { paddleConfigured, getPriceId, createCheckout, verifyPaddleSignature } from './paddle'
+import { paddleConfigured, getPriceId, createCheckout, cancelSubscription as paddleCancelSubscription, verifyPaddleSignature } from './paddle'
 
 // ── Billing (Paddle) ─────────────────────────────────────────────────────
 //
@@ -24,6 +24,25 @@ export function billingConfigured(): boolean {
 
 export async function getBillingStatus(userId: string): Promise<Subscription> {
   return getSubscription(userId)
+}
+
+// Cancels at the end of the current billing period — matches /refund-policy
+// (access and remaining credits continue until the period already paid for
+// ends). Status in our DB deliberately stays 'active' until then; the real
+// transition to 'canceled' arrives later via the subscription.updated/
+// subscription.canceled webhook when the period actually ends, same as any
+// other status change.
+export async function cancelSubscription(userId: string): Promise<{ ok: true } | { error: string }> {
+  const sub = await getSubscription(userId)
+  if (sub.status !== 'active') return { error: 'No active subscription to cancel.' }
+
+  if (sub.provider === 'dev-simulated') {
+    await upsertSubscription(userId, { status: 'canceled' })
+    return { ok: true }
+  }
+
+  if (!sub.providerSubscriptionId) return { error: 'No subscription found with your payment provider.' }
+  return paddleCancelSubscription(sub.providerSubscriptionId)
 }
 
 const DEV_SIMULATED_PLAN_DAYS = 30

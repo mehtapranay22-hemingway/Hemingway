@@ -182,6 +182,9 @@ function BillingContent() {
   const [loadingTier, setLoadingTier] = useState<string | null>(null)
   const [showPlans, setShowPlans] = useState(false)
   const [localizedPrices, setLocalizedPrices] = useState<Record<string, string>>({})
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelled, setCancelled] = useState(false)
 
   // Billing status is fetched first so we know the signed-in customer's
   // Paddle customer id (for Retain's pwCustomer, below) before Paddle.js
@@ -308,6 +311,22 @@ function BillingContent() {
     }
   }
 
+  async function handleCancel() {
+    setCancelling(true)
+    setError('')
+    try {
+      const res = await fetch('/api/billing/cancel', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not cancel subscription')
+      setCancelled(true)
+      setConfirmingCancel(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not cancel subscription')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   if (!loading && signedOut) {
     return (
       <div className="flex min-h-screen bg-[#F7F5F2]">
@@ -384,20 +403,60 @@ function BillingContent() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <Link
-                      href={next}
-                      className="inline-block bg-ink text-cream px-8 py-3 text-sm font-medium hover:bg-accent transition-colors"
-                    >
-                      Continue →
-                    </Link>
-                    <button
-                      onClick={() => setShowPlans(true)}
-                      className="text-sm text-muted hover:text-ink transition-colors"
-                    >
-                      Change plan
-                    </button>
-                  </div>
+                  {cancelled ? (
+                    <div className="border border-divider bg-[#F7F5F2] px-5 py-4 text-sm text-ink max-w-xl">
+                      Your subscription is set to end{subscription.currentPeriodEnd ? ` on ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}` : ''} — you won&apos;t be charged again, and you&apos;ll keep access until then.
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <Link
+                        href={next}
+                        className="inline-block bg-ink text-cream px-8 py-3 text-sm font-medium hover:bg-accent transition-colors"
+                      >
+                        Continue →
+                      </Link>
+                      <button
+                        onClick={() => setShowPlans(true)}
+                        className="text-sm text-muted hover:text-ink transition-colors"
+                      >
+                        Change plan
+                      </button>
+                      {!confirmingCancel && (
+                        <button
+                          onClick={() => setConfirmingCancel(true)}
+                          className="text-sm text-muted hover:text-error transition-colors"
+                        >
+                          Cancel subscription
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {confirmingCancel && !cancelled && (
+                    <div className="mt-4 border border-divider bg-[#F7F5F2] px-5 py-4 max-w-xl">
+                      <p className="text-sm text-ink mb-3">
+                        You&apos;ll keep access and your remaining credits until{' '}
+                        {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'the end of this cycle'}
+                        , then it won&apos;t renew. Sure you want to cancel?
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={handleCancel}
+                          disabled={cancelling}
+                          className="bg-error text-cream px-5 py-2.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                        >
+                          {cancelling ? 'Cancelling...' : 'Yes, cancel'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmingCancel(false)}
+                          disabled={cancelling}
+                          className="text-sm text-muted hover:text-ink transition-colors"
+                        >
+                          Never mind
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>

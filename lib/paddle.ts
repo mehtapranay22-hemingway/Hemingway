@@ -113,6 +113,27 @@ export async function createCheckout(params: {
   }
 }
 
+// Cancels at the end of the current billing period (not immediately) —
+// matches what /refund-policy promises: cancelling stops future renewals
+// but you keep access until the period you've already paid for ends.
+export async function cancelSubscription(subscriptionId: string): Promise<{ ok: true } | { error: string }> {
+  try {
+    const res = await fetch(`${paddleBase()}/subscriptions/${subscriptionId}/cancel`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ effective_from: 'next_billing_period' }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      const message = body?.error?.detail || `Paddle error ${res.status}`
+      return { error: message }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Paddle request failed' }
+  }
+}
+
 // Paddle signs webhook bodies via the Paddle-Signature header, formatted as
 // "ts=<unix_ts>;h1=<hex_hmac>" — the HMAC-SHA256 is computed over
 // "<ts>:<raw_body>" using the notification destination's signing secret
