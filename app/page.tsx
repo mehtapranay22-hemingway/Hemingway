@@ -295,7 +295,7 @@ export default function HomePage() {
                 }}
                 autoFocus
                 placeholder="Describe your product, your offer, your message. e.g. I run a jewelry brand and want an ad for women who want affordable everyday luxury — our gold hoops, $40."
-                className="w-full px-5 pt-5 pb-3 text-base text-ink placeholder:text-[#B5B0A8] bg-transparent outline-none font-sans resize-none"
+                className="w-full px-5 pt-5 pb-3 text-base text-ink placeholder:text-[#B5B0A8] bg-transparent outline-none font-sans resize-none min-h-[180px] sm:min-h-0"
               />
 
               {/* Image thumbnail */}
