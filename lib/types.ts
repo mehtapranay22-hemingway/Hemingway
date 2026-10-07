@@ -79,7 +79,11 @@ export type RenderJob = {
 export type BriefAnalysis = {
   verdict: 'proceed' | 'flag' | 'block'
   brand_tier: 'budget' | 'mid' | 'premium' | 'luxury'
-  production: { clips: number; quality: string; clip_duration: number }
+  production: { clips: number; quality: string; clip_duration: number; duration_seconds: number }
+  // Narrative briefs (a story with a setup and a payoff, not just a product
+  // pitch) need more runway and an explicit guarantee the payoff survives —
+  // see app/api/analyze-brief's SYSTEM prompt and quickgen's use of this.
+  narrative: { has_arc: boolean; payoff_beat: string | null }
   rationale: string
   flag_message: string | null
 }

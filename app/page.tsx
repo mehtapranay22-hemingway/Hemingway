@@ -57,7 +57,8 @@ type UploadedImage = { dataUrl: string; base64: string; mediaType: string; name:
 type BriefAnalysis = {
   verdict: 'proceed' | 'flag' | 'block'
   brand_tier: 'budget' | 'mid' | 'premium' | 'luxury'
-  production: { clips: number; quality: string; clip_duration: number }
+  production: { clips: number; quality: string; clip_duration: number; duration_seconds: number }
+  narrative: { has_arc: boolean; payoff_beat: string | null }
   rationale: string
   flag_message: string | null
 }

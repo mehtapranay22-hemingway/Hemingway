@@ -57,9 +57,23 @@ Do not treat these as a template. The variety rule above still applies in full: 
 // The category is fixed by the client's onboarding profile (lib/db.ts),
 // never re-derived from the brief text — this is the actual mechanism that
 // makes the industry selection reach generation, not just sit stored.
-function buildScriptSystem(category: CategoryFlag, pastKept: KeptAd[]): string {
-  return `You are a direct-response ad scriptwriter for short-form vertical video (15-30 seconds), writing scripts that will be performed by an AI avatar.
+type NarrativeInfo = { has_arc: boolean; payoff_beat: string | null }
 
+function buildScriptSystem(category: CategoryFlag, pastKept: KeptAd[], narrative?: NarrativeInfo): string {
+  // A narrative brief (a story with a setup and a payoff, not a plain
+  // product pitch) needs the payoff explicitly protected — otherwise it's
+  // the first thing that gets silently compressed out when the script has
+  // to fit 15-30 seconds, since nothing below tells the model the ending
+  // is the point, the way it already protects the CTA.
+  const narrativeSection = narrative?.has_arc && narrative.payoff_beat
+    ? `
+This brief tells a STORY, not a plain product pitch — it has a setup and a payoff: "${narrative.payoff_beat}"
+That payoff is the entire point of this ad. Structure the hook and body so it is guaranteed to land clearly — if anything has to be trimmed or compressed to fit the runway, trim setup detail first, never the payoff. The CTA still closes it out, but the payoff itself must be told on screen, not implied, summarized away, or skipped.
+`
+    : ''
+
+  return `You are a direct-response ad scriptwriter for short-form vertical video (15-30 seconds), writing scripts that will be performed by an AI avatar.
+${narrativeSection}
 Universal rules, apply to every script regardless of category
 - Never open with a greeting, brand name, or intro. State the hook in the first line.
 - Vary hook structure genuinely across generations: problem-solution, before/after, testimonial, or a mid-sentence cold-open. Don't just reword the same idea. This applies even against this client's own past kept ads below — if they've leaned on one structure before, pick a different one now.
@@ -95,6 +109,7 @@ Rules:
 - Structure it as a numbered shot list: alternate between the spokesperson speaking to camera and quick cutaway shots of the product/context.
 - Cutaway shots should be handheld, natural, UGC-style — think "phone footage," not polished commercial cinematography.
 - Keep the total run time close to the target duration.
+- If the brief below marks this as a narrative with a payoff beat, that beat must appear as its own clearly depicted shot — never compressed into a cutaway, background action, or summarized in the spokesperson's line without being shown. If any shot needs cutting to fit the duration, cut setup shots first, never the payoff.
 - Output plain text only: the shot list, one shot per line, no markdown, no JSON, no commentary before or after.`
 
 async function generateSeedancePrompt(params: {
@@ -104,8 +119,9 @@ async function generateSeedancePrompt(params: {
   clipCount: number
   characterImageCount: number
   hasProductReference: boolean
+  narrative?: NarrativeInfo
 }): Promise<string> {
-  const { description, script, avatarGender, clipCount, characterImageCount, hasProductReference } = params
+  const { description, script, avatarGender, clipCount, characterImageCount, hasProductReference, narrative } = params
 
   const refLines: string[] = []
   if (characterImageCount > 0) {
@@ -118,10 +134,14 @@ async function generateSeedancePrompt(params: {
     refLines.push(`Product reference: [Image${characterImageCount + 1}] — the actual product. Match it exactly in every shot that shows it.`)
   }
 
+  const payoffLine = narrative?.has_arc && narrative.payoff_beat
+    ? `\nPayoff beat (must get its own shot, never cut or compressed): "${narrative.payoff_beat}"`
+    : ''
+
   const userPrompt = `${refLines.join('\n')}
 Target duration: ~${script.estimatedDurationSeconds}s
 Number of cutaway/B-roll beats: ${clipCount}
-Product: ${description}
+Product: ${description}${payoffLine}
 
 Dialogue (use exactly, split across shots in order):
 Hook: "${script.hookLine}"
@@ -145,18 +165,25 @@ Write the shot list now.`
 // directly in one call (there's no separate "spoken script" to write first,
 // unlike the dialogue path above), so it also skips generateSeedancePrompt
 // entirely — this IS the final prompt.
-function buildCinematicSystem(category: CategoryFlag, pastKept: KeptAd[]): string {
+function buildCinematicSystem(category: CategoryFlag, pastKept: KeptAd[], narrative?: NarrativeInfo): string {
+  const narrativeSection = narrative?.has_arc && narrative.payoff_beat
+    ? `
+This brief tells a STORY, not a plain product showcase — it has a setup and a payoff: "${narrative.payoff_beat}"
+That payoff must appear as its own clearly depicted shot near the end, told visually since there's no dialogue here — never compressed into a background detail or cut for pacing. If any shot needs trimming to fit the runway, trim setup shots first, never the payoff shot.
+`
+    : ''
+
   return `You are a director writing a cinematic, product-focused Seedance video ad prompt — no persistent on-camera spokesperson, no branded character, no spoken dialogue delivered to camera.
 
 Seedance generates a whole multi-shot ad in ONE continuous pass — camera movement, lighting, framing, pacing, transitions — from one text prompt structured as a numbered shot list.
-
+${narrativeSection}
 This client's category is fixed by their account profile — express its emotional center through cinematography and visual choices, not spoken dialogue or delivery style:
 
 ${CATEGORY_DIRECTION[category]}
 ${pastAdsSection(pastKept, 'cinematic shot lists')}
 
 Rules:
-- Structure the output as a numbered shot list: "Shot 1: ...", "Shot 2: ...", etc. — 4 to 6 shots.
+- Structure the output as a numbered shot list: "Shot 1: ...", "Shot 2: ...", etc. — 4 to 6 shots (narrative briefs may run up to 8, to leave room for the payoff).
 - Vary the opening shot, setting, and camera approach genuinely across generations — don't default to the same establishing shot or lighting setup every time, including relative to this client's own past kept shot lists above. Treat those as a reference for quality and tone only, never a template to reuse.
 - Every shot is pure visual/camera direction: framing, camera movement (slow push-in, handheld drift, static lockoff), lighting, pacing, transitions. No spoken lines, no dialogue in quotes, no voiceover, no named character.
 - An incidental, unnamed person may appear where a shot calls for it (e.g. "a hand reaches for the box," "someone walking past in soft focus, out of focus"). Describe them only by the action — never name them, never describe them with enough consistent detail to imply a recurring identity across shots. A different unnamed person in each shot is fine; there is no identity to maintain.
@@ -173,24 +200,30 @@ async function generateCinematicPrompt(params: {
   durationSeconds: number
   hasProductReference: boolean
   pastKept: KeptAd[]
+  narrative?: NarrativeInfo
 }): Promise<string> {
-  const { description, category, clipCount, durationSeconds, hasProductReference, pastKept } = params
+  const { description, category, clipCount, durationSeconds, hasProductReference, pastKept, narrative } = params
 
   const productLine = hasProductReference
     ? `Product reference: [Image1] — the actual product. Every shot showing it must match this exactly.`
     : `No product reference photo was provided — render the product as faithfully as the brief allows.`
 
+  const payoffLine = narrative?.has_arc && narrative.payoff_beat
+    ? `\nPayoff beat (must get its own shot, never cut or compressed): "${narrative.payoff_beat}"`
+    : ''
+
+  const maxShots = narrative?.has_arc ? 8 : 6
   const userPrompt = `${productLine}
 Target duration: ~${durationSeconds}s
-Suggested number of distinct shots: ${Math.max(4, Math.min(6, clipCount + 2))}
-Product/brief: ${description}
+Suggested number of distinct shots: ${Math.max(4, Math.min(maxShots, clipCount + 2))}
+Product/brief: ${description}${payoffLine}
 
 Write the cinematic shot list now.`
 
   const msg = await anthropic.messages.create({
     model: 'claude-opus-4-8',
     max_tokens: 600,
-    system: buildCinematicSystem(category, pastKept),
+    system: buildCinematicSystem(category, pastKept, narrative),
     messages: [{ role: 'user', content: userPrompt }],
   })
   return msg.content[0].type === 'text' ? msg.content[0].text.trim() : ''
@@ -235,6 +268,12 @@ export async function POST(req: NextRequest) {
   const clientProfile = user ? await getClientProfile(user.id) : null
   const category = categoryFlagForIndustry(clientProfile?.industry ?? 'Other')
 
+  // From /api/analyze-brief — a narrative brief (a story with a payoff, not
+  // a plain product pitch) gets more runway and an explicit guarantee the
+  // payoff survives; see buildScriptSystem/buildCinematicSystem above.
+  const narrative = analysis?.narrative as NarrativeInfo | undefined
+  const durationSeconds = (analysis?.production?.duration_seconds ?? 20) as number
+
   const isAutoCast = avatarId === AUTO_CAST_ID
   const isNoCharacter = avatarId === NO_CHARACTER_ID
 
@@ -255,9 +294,10 @@ export async function POST(req: NextRequest) {
         description,
         category,
         clipCount: clipCountEarly,
-        durationSeconds: 20,
+        durationSeconds,
         hasProductReference: !!imageBase64,
         pastKept,
+        narrative,
       })
       if (!cinematicPrompt) throw new Error('Empty cinematic shot list from Claude')
 
@@ -278,7 +318,7 @@ export async function POST(req: NextRequest) {
         body: displayText,
         cta: '',
         pacingNotes: '',
-        estimatedDurationSeconds: 20,
+        estimatedDurationSeconds: durationSeconds,
       }
     } else {
       const userContent = imageBase64
@@ -291,7 +331,7 @@ export async function POST(req: NextRequest) {
       const msg = await anthropic.messages.create({
         model: 'claude-opus-4-8',
         max_tokens: 600,
-        system: buildScriptSystem(category, pastKept),
+        system: buildScriptSystem(category, pastKept, narrative),
         messages: [{ role: 'user', content: userContent }],
       })
 
@@ -307,7 +347,7 @@ export async function POST(req: NextRequest) {
         body: parsed.body,
         cta: parsed.cta,
         pacingNotes: '',
-        estimatedDurationSeconds: 20,
+        estimatedDurationSeconds: durationSeconds,
       }
     }
   } catch (err) {
@@ -373,6 +413,7 @@ export async function POST(req: NextRequest) {
         clipCount,
         characterImageCount: characterImageUrls.length,
         hasProductReference: !!productImageUrl,
+        narrative,
       })
       if (!prompt) throw new Error('Empty shot list from Claude')
     }
