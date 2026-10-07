@@ -59,6 +59,28 @@ Do not treat these as a template. The variety rule above still applies in full: 
 // makes the industry selection reach generation, not just sit stored.
 type NarrativeInfo = { has_arc: boolean; payoff_beat: string | null }
 
+// A concrete timecode breakdown is a much stronger pacing anchor for Claude
+// than a bare shot count or duration alone — Seedance's own prompting
+// examples are written this way, and it's what actually lets duration_seconds
+// (now variable per brief, see analyze-brief) translate into real pacing
+// instead of just a target number nothing else respects. Suggestion, not a
+// rigid contract — Claude can adjust shot count, but every shot should open
+// with one of these ranges or something close to it.
+function suggestTimecodes(totalSeconds: number, shotCount: number): string {
+  const n = Math.max(1, Math.round(shotCount))
+  const base = Math.floor(totalSeconds / n)
+  const remainder = totalSeconds - base * n
+  const ranges: string[] = []
+  let t = 0
+  for (let i = 0; i < n; i++) {
+    const dur = base + (i < remainder ? 1 : 0)
+    const next = t + dur
+    ranges.push(`${t}-${next}s`)
+    t = next
+  }
+  return ranges.join(', ')
+}
+
 function buildScriptSystem(category: CategoryFlag, pastKept: KeptAd[], narrative?: NarrativeInfo): string {
   // A narrative brief (a story with a setup and a payoff, not a plain
   // product pitch) needs the payoff explicitly protected — otherwise it's
@@ -106,7 +128,7 @@ Rules:
 - If spokesperson reference image(s) are given, every shot featuring them must reference those image numbers and keep identity, outfit, and setting consistent across the whole video. If multiple images are given for the spokesperson, they're the same person from different angles, not different people. If no spokesperson reference is given, invent one whose look, age, and setting genuinely fit the product and audience, and describe them in enough detail in the first shot that later shots can consistently refer back to "the spokesperson."
 - If a product reference image is given, every shot showing the product — especially cutaways — must reference that image number and match its real appearance (color, shape, packaging). Never invent a different-looking product when a real reference exists.
 - Put every spoken line in double quotes exactly as given, so Seedance lip-syncs it — never paraphrase the provided dialogue.
-- Structure it as a numbered shot list: alternate between the spokesperson speaking to camera and quick cutaway shots of the product/context.
+- Structure it as a shot list, each line starting with its timecode range (e.g. "0-4s: ..."), alternating between the spokesperson speaking to camera and quick cutaway shots of the product/context. Timecodes must be contiguous and sum to the target duration — this is a stronger pacing signal than a bare shot count, and matches how Seedance's own examples are written.
 - Cutaway shots should be handheld, natural, UGC-style — think "phone footage," not polished commercial cinematography.
 - Keep the total run time close to the target duration.
 - If the brief below marks this as a narrative with a payoff beat, that beat must appear as its own clearly depicted shot — never compressed into a cutaway, background action, or summarized in the spokesperson's line without being shown. If any shot needs cutting to fit the duration, cut setup shots first, never the payoff.
@@ -137,10 +159,13 @@ async function generateSeedancePrompt(params: {
   const payoffLine = narrative?.has_arc && narrative.payoff_beat
     ? `\nPayoff beat (must get its own shot, never cut or compressed): "${narrative.payoff_beat}"`
     : ''
+  const suggestedShotCount = Math.max(3, Math.min(8, clipCount + 2))
+  const timecodes = suggestTimecodes(script.estimatedDurationSeconds, suggestedShotCount)
 
   const userPrompt = `${refLines.join('\n')}
 Target duration: ~${script.estimatedDurationSeconds}s
 Number of cutaway/B-roll beats: ${clipCount}
+Suggested timecode breakdown (adjust as needed, keep contiguous): ${timecodes}
 Product: ${description}${payoffLine}
 
 Dialogue (use exactly, split across shots in order):
@@ -183,7 +208,7 @@ ${CATEGORY_DIRECTION[category]}
 ${pastAdsSection(pastKept, 'cinematic shot lists')}
 
 Rules:
-- Structure the output as a numbered shot list: "Shot 1: ...", "Shot 2: ...", etc. — 4 to 6 shots (narrative briefs may run up to 8, to leave room for the payoff).
+- Structure the output as a shot list, each line starting with its timecode range (e.g. "0-4s: ..."), not just a shot number — 4 to 6 shots (narrative briefs may run up to 8, to leave room for the payoff). Timecodes must be contiguous and sum to the target duration.
 - Vary the opening shot, setting, and camera approach genuinely across generations — don't default to the same establishing shot or lighting setup every time, including relative to this client's own past kept shot lists above. Treat those as a reference for quality and tone only, never a template to reuse.
 - Every shot is pure visual/camera direction: framing, camera movement (slow push-in, handheld drift, static lockoff), lighting, pacing, transitions. No spoken lines, no dialogue in quotes, no voiceover, no named character.
 - An incidental, unnamed person may appear where a shot calls for it (e.g. "a hand reaches for the box," "someone walking past in soft focus, out of focus"). Describe them only by the action — never name them, never describe them with enough consistent detail to imply a recurring identity across shots. A different unnamed person in each shot is fine; there is no identity to maintain.
@@ -213,9 +238,12 @@ async function generateCinematicPrompt(params: {
     : ''
 
   const maxShots = narrative?.has_arc ? 8 : 6
+  const shotCount = Math.max(4, Math.min(maxShots, clipCount + 2))
+  const timecodes = suggestTimecodes(durationSeconds, shotCount)
   const userPrompt = `${productLine}
 Target duration: ~${durationSeconds}s
-Suggested number of distinct shots: ${Math.max(4, Math.min(maxShots, clipCount + 2))}
+Suggested number of distinct shots: ${shotCount}
+Suggested timecode breakdown (adjust as needed, keep contiguous): ${timecodes}
 Product/brief: ${description}${payoffLine}
 
 Write the cinematic shot list now.`
@@ -306,9 +334,12 @@ export async function POST(req: NextRequest) {
       // literal "Image1" reference tokens for the API to work; showing those
       // to a person reads as broken. Strip them and break onto separate
       // lines per shot for a display-only version.
+      // Shots are now timecoded ("0-4s: ..."), not numbered ("Shot 1: ...")
+      // — match both so this doesn't quietly stop line-breaking if either
+      // format shows up.
       const displayText = cinematicPrompt
         .replace(/\[?Image\d+\]?/gi, 'the product')
-        .replace(/\s*(Shot \d+:)/g, '\n$1')
+        .replace(/\s*(\d+-\d+s:|Shot \d+:)/g, '\n$1')
         .trim()
 
       script = {
