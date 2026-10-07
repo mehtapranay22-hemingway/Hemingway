@@ -115,6 +115,33 @@ Output a single JSON object, no markdown fences, no explanation outside the JSON
 {"hook":"opening line","body":"2-3 sentences bridging hook to CTA","cta":"single closing call to action"}`
 }
 
+// A working vocabulary of camera/lighting technique mapped to the JOB it
+// does — not a menu for the end user (they never see this), but the thing
+// that lets Claude choose with directorial intent instead of defaulting to
+// generic description or the same few moves every time. Shared between the
+// dialogue and cinematic system prompts below.
+const DIRECTOR_TOOLKIT = `Director's toolkit — camera and lighting technique, each with a specific job. Choose deliberately based on what THIS shot needs to do emotionally, not generically or at random:
+
+Camera movement:
+- Push-in (slow move toward subject): builds tension, signals "this matters" — strong for a hook or an emotional beat.
+- Pull-back / reveal: unveils context or scale after a tight detail — strong for a "wait for it" moment.
+- Orbit (circles the subject): showcases full form and craftsmanship — strong for a hero product shot.
+- Tracking (moves alongside the subject): creates momentum and energy — strong for action or a walk-and-talk.
+- Static lockoff: calm, confident, lets the subject speak for itself — strong for dialogue-heavy or trust-building beats.
+- Handheld drift: authentic, lived-in, UGC-native — strong for cutaways and relatable context.
+- Whip pan: fast, jarring transition between two beats — strong for a hard cut between before/after or a scene change.
+- Crane / rise: scale and grandeur — strong for an epic reveal or a finale.
+- Macro push/slide: luxury, texture, craftsmanship — strong for premium product detail.
+
+Lighting:
+- Soft, diffused: approachable, gentle — wellness, skincare, everyday-use products.
+- Hard, directional: bold, premium, aspirational — luxury, automotive, high-status products.
+- Warm/golden: emotional, inviting, nostalgic — relational or gifting moments.
+- Bright, high-key: clean, optimistic, energetic — budget/mid-tier, youthful brands.
+- Low-key, moody: exclusivity, mystery — luxury reveals, premium hero shots.
+
+Pick technique by the JOB each shot has to do (hook grabs attention, setup builds context, payoff lands the point, CTA closes) — not by habit, and not by what the last few generations used. Vary your choices genuinely across generations.`
+
 // Seedance generates a whole multi-shot ad — talking character, lip-synced
 // dialogue, cutaways, music — in one continuous pass from a single prompt
 // plus zero or more reference images. This replaces the old three-service
@@ -124,12 +151,15 @@ const SEEDANCE_SYSTEM = `You are a director translating a video ad script into a
 
 Seedance generates a whole multi-shot ad in ONE continuous pass — talking character, lip-synced dialogue, cutaways, and music — from one text prompt plus zero or more reference images, numbered [Image1], [Image2], ... in the order given to you below.
 
+${DIRECTOR_TOOLKIT}
+
 Rules:
 - If spokesperson reference image(s) are given, every shot featuring them must reference those image numbers and keep identity, outfit, and setting consistent across the whole video. If multiple images are given for the spokesperson, they're the same person from different angles, not different people. If no spokesperson reference is given, invent one whose look, age, and setting genuinely fit the product and audience, and describe them in enough detail in the first shot that later shots can consistently refer back to "the spokesperson."
 - If a product reference image is given, every shot showing the product — especially cutaways — must reference that image number and match its real appearance (color, shape, packaging). Never invent a different-looking product when a real reference exists.
 - Put every spoken line in double quotes exactly as given, so Seedance lip-syncs it — never paraphrase the provided dialogue.
 - Structure it as a shot list, each line starting with its timecode range (e.g. "0-4s: ..."), alternating between the spokesperson speaking to camera and quick cutaway shots of the product/context. Timecodes must be contiguous and sum to the target duration — this is a stronger pacing signal than a bare shot count, and matches how Seedance's own examples are written.
-- Cutaway shots should be handheld, natural, UGC-style — think "phone footage," not polished commercial cinematography.
+- Name the camera movement and lighting choice explicitly in each shot's description, drawn from the toolkit above and matched to that shot's job (hook/setup/payoff/CTA) — not left implicit.
+- Cutaway shots default to handheld, natural, UGC-style ("phone footage") unless the toolkit calls for something more deliberate for that specific beat (e.g. a macro push on the payoff).
 - Keep the total run time close to the target duration.
 - If the brief below marks this as a narrative with a payoff beat, that beat must appear as its own clearly depicted shot — never compressed into a cutaway, background action, or summarized in the spokesperson's line without being shown. If any shot needs cutting to fit the duration, cut setup shots first, never the payoff.
 - Output plain text only: the shot list, one shot per line, no markdown, no JSON, no commentary before or after.`
@@ -202,6 +232,8 @@ That payoff must appear as its own clearly depicted shot near the end, told visu
 
 Seedance generates a whole multi-shot ad in ONE continuous pass — camera movement, lighting, framing, pacing, transitions — from one text prompt structured as a numbered shot list.
 ${narrativeSection}
+${DIRECTOR_TOOLKIT}
+
 This client's category is fixed by their account profile — express its emotional center through cinematography and visual choices, not spoken dialogue or delivery style:
 
 ${CATEGORY_DIRECTION[category]}
@@ -210,7 +242,7 @@ ${pastAdsSection(pastKept, 'cinematic shot lists')}
 Rules:
 - Structure the output as a shot list, each line starting with its timecode range (e.g. "0-4s: ..."), not just a shot number — 4 to 6 shots (narrative briefs may run up to 8, to leave room for the payoff). Timecodes must be contiguous and sum to the target duration.
 - Vary the opening shot, setting, and camera approach genuinely across generations — don't default to the same establishing shot or lighting setup every time, including relative to this client's own past kept shot lists above. Treat those as a reference for quality and tone only, never a template to reuse.
-- Every shot is pure visual/camera direction: framing, camera movement (slow push-in, handheld drift, static lockoff), lighting, pacing, transitions. No spoken lines, no dialogue in quotes, no voiceover, no named character.
+- Every shot is pure visual/camera direction: framing, camera movement, lighting, pacing, transitions — name the specific technique from the toolkit above and why it fits that shot's job, don't leave it generic. No spoken lines, no dialogue in quotes, no voiceover, no named character.
 - An incidental, unnamed person may appear where a shot calls for it (e.g. "a hand reaches for the box," "someone walking past in soft focus, out of focus"). Describe them only by the action — never name them, never describe them with enough consistent detail to imply a recurring identity across shots. A different unnamed person in each shot is fine; there is no identity to maintain.
 - If a product reference image is given (it will be described to you as an image number below), every shot showing the product must reference that image number and match its real appearance exactly — color, shape, packaging. Never invent a different-looking product when a real reference exists.
 - Cinematic quality: premium DTC brand film — deliberate camera movement and lighting, not amateur handheld UGC footage.
