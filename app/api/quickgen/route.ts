@@ -259,7 +259,12 @@ Write the cinematic shot list now.`
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
-  const { avatarId, avatarGender, description, imageBase64, imageMediaType, analysis } = body || {}
+  const { avatarId, avatarGender, description, imageBase64, imageMediaType, analysis, motionReferenceUrl } = body || {}
+  // motionReferenceUrl: NOT wired into any UI yet — experimental, direct-API-only
+  // field for testing the unconfirmed Omni Reference video support (see the
+  // long comment on submitShot in lib/seedance.ts). A real https:// URL to a
+  // short (2-30s) video clip whose camera motion/rhythm Seedance should
+  // reference. Pass it in the POST body directly to test.
 
   if (!avatarId || !description) {
     return NextResponse.json({ error: 'avatarId and description are required' }, { status: 400 })
@@ -518,6 +523,7 @@ export async function POST(req: NextRequest) {
   const submitResult = await submitShot({
     prompt,
     referenceImageUrls: characterSheet.referenceImageUrls,
+    referenceVideoUrl: typeof motionReferenceUrl === 'string' ? motionReferenceUrl : undefined,
     durationSeconds: script.estimatedDurationSeconds,
   })
 

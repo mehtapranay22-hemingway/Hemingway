@@ -80,9 +80,24 @@ export async function buildCharacterSheet(
   }
 }
 
+// NOT CONFIRMED — motion-reference video support. Researched (not tested
+// live): BytePlus's Seedance 2.5 "Omni Reference" genuinely supports
+// reference video clips for camera motion/rhythm (confirmed via multiple
+// independent sources), and omni_reference_task_type is a real top-level
+// param on this exact endpoint with values auto/reference/edit/extend
+// (confirmed against a real PR touching Ark SDK params). What's NOT
+// confirmed: the exact content-array item shape for a video reference —
+// the official Python SDK's own video-generation example
+// (ark-runtime-python/examples/volc/content_generation_tasks.py) only
+// demonstrates image_url, no video reference at all. The shape below
+// (type: 'video_url', role: 'reference_video') is the best-informed guess
+// available, built by analogy to the confirmed image_url/role pattern —
+// treat the first real test call as the actual source of truth, not this
+// comment. If it errors or gets silently ignored, that's the thing to fix.
 export async function submitShot(params: {
   prompt: string
   referenceImageUrls: string[]
+  referenceVideoUrl?: string
   durationSeconds: number
   seed?: number
 }): Promise<{ taskId: string } | { error: string }> {
@@ -105,7 +120,11 @@ export async function submitShot(params: {
             image_url: { url },
             role: 'reference_image',
           })),
+          ...(params.referenceVideoUrl
+            ? [{ type: 'video_url', video_url: { url: params.referenceVideoUrl }, role: 'reference_video' }]
+            : []),
         ],
+        ...(params.referenceVideoUrl ? { omni_reference_task_type: 'reference' } : {}),
         duration: Math.min(30, Math.max(4, Math.round(params.durationSeconds))),
         ratio: '9:16',
         generate_audio: true,
