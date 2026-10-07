@@ -4,7 +4,8 @@ import { pollRender } from '@/lib/heygen'
 import { composeVideo, pollCompose, shotstackConfigured } from '@/lib/shotstack'
 import { pollShot, submitShot, runQualityGate } from '@/lib/seedance'
 import { saveVideoFromUrl } from '@/lib/uploads'
-import { getSubscription, incrementVideosUsed } from '@/lib/db'
+import { getSubscription, incrementVideosUsed, getUserById } from '@/lib/db'
+import { isOwner, logRenderCost } from '@/lib/owner'
 import type { RenderJob, Pipeline, SeedancePipeline } from '@/lib/types'
 
 export async function GET(req: NextRequest) {
@@ -145,6 +146,17 @@ async function handleStatusPoll(sessionId: string): Promise<NextResponse> {
     } else if (owner?.status === 'active') {
       const { prompt, referenceImageUrls, durationSeconds } = seedancePipeline.pendingSubmission
       const submitResult = await submitShot({ prompt, referenceImageUrls, durationSeconds })
+      // This branch only ever runs for a session quickgen stored as
+      // 'awaiting_payment', which only happens for a requester who was
+      // neither paid nor owner-exempt at submission time (see
+      // app/api/quickgen/route.ts) — so isOwner is always false here, not
+      // re-derived, to avoid an extra lookup on every status poll.
+      logRenderCost({
+        userId: session.userId ?? null,
+        isOwner: false,
+        durationSeconds,
+        status: 'error' in submitResult ? 'failed' : 'submitted',
+      })
       if ('error' in submitResult) {
         seedancePipeline = {
           ...seedancePipeline,
@@ -202,6 +214,15 @@ async function handleStatusPoll(sessionId: string): Promise<NextResponse> {
           referenceImageUrls: seedancePipeline!.characterSheet.referenceImageUrls,
           durationSeconds: targetDuration,
         })
+        // A retry is a real, separate Seedance submission — its own cost
+        // event, not covered by whatever was logged for the first attempt.
+        const retryUser = session!.userId ? await getUserById(session!.userId) : null
+        logRenderCost({
+          userId: session!.userId ?? null,
+          isOwner: isOwner(retryUser),
+          durationSeconds: targetDuration,
+          status: 'error' in retry ? 'failed' : 'submitted',
+        })
         if ('error' in retry) {
           seedancePipeline = { ...seedancePipeline!, status: 'failed', attempts }
         } else {
@@ -226,7 +247,11 @@ async function handleStatusPoll(sessionId: string): Promise<NextResponse> {
         // Counted here, not at submission — a render that ultimately fails
         // after retries shouldn't cost the client a video from their
         // allowance, only one that actually finishes successfully does.
-        if (session.userId) await incrementVideosUsed(session.userId)
+        // Owner renders never touch customer usage stats or billing.
+        if (session.userId) {
+          const completingUser = await getUserById(session.userId)
+          if (!isOwner(completingUser)) await incrementVideosUsed(session.userId)
+        }
       } else {
         await retryOrFail(gate.reason || 'Quality gate failed')
       }

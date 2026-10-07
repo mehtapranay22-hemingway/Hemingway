@@ -10,6 +10,7 @@ import { getClientProfile, getSubscription, getRecentKeptAds, type KeptAd } from
 import { getCurrentUser } from '@/lib/auth'
 import { categoryFlagForIndustry, type CategoryFlag } from '@/lib/industry'
 import { checkRateLimit, clientIp } from '@/lib/ratelimit'
+import { isOwner, checkOwnerDailyLimit, logRenderCost } from '@/lib/owner'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -390,17 +391,33 @@ export async function POST(req: NextRequest) {
   const subscription = user ? await getSubscription(user.id) : null
   const isPaid = subscription?.status === 'active'
 
+  // Owner exemption (lib/owner.ts) — a verified-email match against
+  // OWNER_EMAILS skips the subscription/credit gate entirely below, but
+  // still goes through auth, input validation, and rate limits above, plus
+  // its own daily cap so a bug or loop can't drain the real BytePlus
+  // balance. Never enforced client-side — this is the actual gate.
+  const ownerExempt = isOwner(user)
+  if (ownerExempt) {
+    const { allowed: underDailyCap } = await checkOwnerDailyLimit(user!.id)
+    if (!underDailyCap) {
+      return NextResponse.json({
+        error: 'Owner daily render limit reached. Try again tomorrow (UTC).',
+      }, { status: 429 })
+    }
+  }
+
   // A paid account can still be tapped out for the cycle — the real Seedance
   // cost must never fire past the plan's monthly video allowance, checked
   // fresh here (not trusted from whenever they last checked their usage).
-  if (isPaid && subscription!.videoAllowance != null && subscription!.videosUsedThisCycle >= subscription!.videoAllowance) {
+  // Owners skip this check entirely — see the daily cap above instead.
+  if (!ownerExempt && isPaid && subscription!.videoAllowance != null && subscription!.videosUsedThisCycle >= subscription!.videoAllowance) {
     return NextResponse.json({
       error: `You've used all ${subscription!.videoAllowance} videos in your current billing cycle. Upgrade your plan to generate more.`,
       upgradeUrl: '/billing',
     }, { status: 402 })
   }
 
-  if (!isPaid) {
+  if (!isPaid && !ownerExempt) {
     await updateSession(session.id, {
       scripts: [script],
       ...(analysis ? { briefAnalysis: analysis } : {}),
@@ -430,6 +447,13 @@ export async function POST(req: NextRequest) {
     prompt,
     referenceImageUrls: characterSheet.referenceImageUrls,
     durationSeconds: script.estimatedDurationSeconds,
+  })
+
+  logRenderCost({
+    userId: user?.id ?? null,
+    isOwner: ownerExempt,
+    durationSeconds: script.estimatedDurationSeconds,
+    status: 'error' in submitResult ? 'failed' : 'submitted',
   })
 
   if ('error' in submitResult) {
