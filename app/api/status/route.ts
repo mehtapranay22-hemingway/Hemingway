@@ -190,9 +190,18 @@ async function handleStatusPoll(sessionId: string): Promise<NextResponse> {
       if (result.status === 'completed' && videoUrl) {
         try {
           videoUrl = await saveVideoFromUrl(videoUrl)
-        } catch {
+        } catch (err) {
           // Fall back to the remote URL rather than losing the completed
-          // render outright — it'll still work until it expires.
+          // render outright — it'll still work until it expires. This was
+          // previously a silent catch with no logging at all, meaning a
+          // real rehost failure (and the real Seedance cost behind it)
+          // left zero trace to diagnose later — logged now so a repeat is
+          // actually debuggable from Vercel's function logs.
+          console.error('[status] saveVideoFromUrl failed, falling back to remote (expiring) url', {
+            sessionId,
+            remoteUrl: videoUrl,
+            error: err instanceof Error ? err.message : err,
+          })
         }
       }
 

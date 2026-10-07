@@ -39,13 +39,26 @@ export async function saveTemporaryImage(imageBase64: string, imageMediaType: st
 // serving them from our own storage makes "completed" actually mean
 // permanently available.
 export async function saveVideoFromUrl(remoteUrl: string): Promise<string> {
-  const res = await fetch(remoteUrl)
-  if (!res.ok) throw new Error(`Failed to fetch video (${res.status})`)
-  const buffer = Buffer.from(await res.arrayBuffer())
-  const id = randomUUID().replace(/-/g, '').slice(0, 12)
-  const blob = await put(`videos/${id}.mp4`, buffer, {
-    access: 'public',
-    contentType: 'video/mp4',
-  })
-  return blob.url
+  // One retry — this fetch is against a third-party CDN (BytePlus TOS) at
+  // the exact moment it just finished writing the file, and the only
+  // alternative to retrying is losing an already-paid-for render to a
+  // transient network blip. Real failures (bad URL, Blob auth/quota issue)
+  // still surface after the second attempt.
+  let lastErr: unknown
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(remoteUrl)
+      if (!res.ok) throw new Error(`Failed to fetch video (${res.status})`)
+      const buffer = Buffer.from(await res.arrayBuffer())
+      const id = randomUUID().replace(/-/g, '').slice(0, 12)
+      const blob = await put(`videos/${id}.mp4`, buffer, {
+        access: 'public',
+        contentType: 'video/mp4',
+      })
+      return blob.url
+    } catch (err) {
+      lastErr = err
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Failed to rehost video after 2 attempts')
 }
