@@ -108,8 +108,14 @@ function PickAvatar() {
       .finally(() => setLoading(false))
   }, [description, router])
 
-  async function handleGenerate() {
-    if (!selected || !description) return
+  // Takes an optional override so the top "Skip" shortcut can generate with
+  // the default (Let Hemingway cook) in one click without waiting on
+  // setSelected's state update to land first — React state updates aren't
+  // synchronous, so reading `selected` right after calling setSelected
+  // would still see the old value.
+  async function handleGenerate(avatarOverride?: HeyGenAvatar) {
+    const avatar = avatarOverride || selected
+    if (!avatar || !description) return
     setGenerating(true)
     setError('')
     try {
@@ -121,8 +127,8 @@ function PickAvatar() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          avatarId: selected.avatar_id,
-          avatarGender: isSpecialCard(selected.avatar_id) ? undefined : (selected.gender || 'female'),
+          avatarId: avatar.avatar_id,
+          avatarGender: isSpecialCard(avatar.avatar_id) ? undefined : (avatar.gender || 'female'),
           description, imageBase64, imageMediaType, analysis,
         }),
       })
@@ -146,6 +152,13 @@ function PickAvatar() {
           <a href="/" className="text-muted text-sm hover:text-ink transition-colors">← Back</a>
           <span className="text-[#E8E5DF]">/</span>
           <span className="text-sm text-ink">Pick avatar</span>
+          <button
+            onClick={() => handleGenerate(AUTO_CAST)}
+            disabled={generating || !description}
+            className="ml-auto text-sm text-muted hover:text-ink transition-colors disabled:opacity-40"
+          >
+            {generating ? 'Generating...' : 'Skip →'}
+          </button>
         </div>
 
         <div className="px-8 py-10 max-w-5xl">
@@ -304,7 +317,7 @@ function PickAvatar() {
             </div>
           </div>
           <button
-            onClick={handleGenerate}
+            onClick={() => handleGenerate()}
             disabled={generating}
             className="w-full sm:w-auto sm:ml-auto bg-ink text-cream px-8 py-3 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-40 flex items-center justify-center gap-3"
           >
