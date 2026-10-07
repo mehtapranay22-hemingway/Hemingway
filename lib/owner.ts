@@ -17,11 +17,12 @@ function ownerEmails(): string[] {
     .filter(Boolean)
 }
 
-// Verified-email-only by design: an unverified email is just a claim
-// someone typed in, not proof of identity — exempting on that basis would
-// let anyone sign up with your email and skip billing.
-export function isOwner(user: Pick<User, 'email' | 'emailVerified'> | null): boolean {
-  if (!user || !user.emailVerified) return false
+// Email verification was removed from the app — this now just matches the
+// signed-in account's email against OWNER_EMAILS. Email uniqueness at
+// signup (lib/db.ts createUser) still means only one account can ever hold
+// a given email at all.
+export function isOwner(user: Pick<User, 'email'> | null): boolean {
+  if (!user) return false
   const emails = ownerEmails()
   if (emails.length === 0) return false
   return emails.includes(user.email.toLowerCase())

@@ -1,8 +1,8 @@
 import { Resend } from 'resend'
 
-// Transactional email (verification, password reset) via Resend. Configured
-// only when RESEND_API_KEY is set — unset locally, sends are skipped with a
-// console warning so the rest of the auth flow still works in dev.
+// Transactional email (password reset) via Resend. Configured only when
+// RESEND_API_KEY is set — unset locally, sends are skipped with a console
+// warning so the rest of the auth flow still works in dev.
 
 export function emailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY
@@ -38,25 +38,6 @@ function wrapEmail(heading: string, body: string, ctaLabel: string, ctaUrl: stri
       </div>
     </div>
   `
-}
-
-export async function sendVerificationEmail(email: string, token: string): Promise<void> {
-  if (!emailConfigured()) {
-    console.warn('[email] RESEND_API_KEY not set — skipping verification email to', email)
-    return
-  }
-  const url = `${appBaseUrl()}/api/auth/verify-email?token=${token}`
-  await getResend().emails.send({
-    from: fromAddress(),
-    to: email,
-    subject: 'Verify your Hemingway account',
-    html: wrapEmail(
-      'Verify your email.',
-      'Confirm this is your email address to finish setting up your Hemingway account.',
-      'Verify email →',
-      url
-    ),
-  })
 }
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {

@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   // isOwner here is display-only (e.g. an optional "Owner mode" badge) —
   // the real enforcement is server-side in app/api/quickgen/route.ts.
   return NextResponse.json({
-    user: { id: user.id, email: user.email, emailVerified: user.emailVerified, isOwner: isOwner(user) },
+    user: { id: user.id, email: user.email, isOwner: isOwner(user) },
     profile,
   })
 }

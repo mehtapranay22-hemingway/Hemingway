@@ -34,7 +34,7 @@ export default function PrivacyPage() {
           <li>To run your account (sign-in, saved avatars, video library)</li>
           <li>To bill your subscription and enforce plan limits</li>
           <li>To improve future generations for your account — we keep a lightweight record of which ads you&apos;ve downloaded, used only to give our script generator relevant examples of what you&apos;ve liked before</li>
-          <li>To send account emails — verification links, password resets, and billing receipts</li>
+          <li>To send account emails — password resets and billing receipts</li>
           <li>To prevent abuse (rate limiting sign-ups and sign-ins)</li>
         </ul>
       </section>
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
           <li><strong>Anthropic</strong> — processes your brief text to generate ad scripts</li>
           <li><strong>BytePlus / ByteDance (Seedance)</strong> — processes your brief, images, and script to generate video</li>
           <li><strong>Paddle</strong> — our merchant of record; handles payment, your card details, and receipts</li>
-          <li><strong>Resend</strong> — sends verification, password-reset, and transactional email on our behalf</li>
+          <li><strong>Resend</strong> — sends password-reset and transactional email on our behalf</li>
           <li><strong>Vercel</strong> — hosts the application and stores uploaded images and generated videos (Vercel Blob)</li>
           <li><strong>Neon</strong> — hosts our database (account, profile, and subscription data)</li>
         </ul>

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createUser, getUserByEmail, createVerificationToken } from '@/lib/db'
+import { createUser, getUserByEmail } from '@/lib/db'
 import { hashPassword, attachSession } from '@/lib/auth'
 import { checkRateLimit, clientIp } from '@/lib/ratelimit'
-import { sendVerificationEmail } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   // 10 signups per hour per IP — generous for a real person, tight enough
@@ -28,16 +27,6 @@ export async function POST(req: NextRequest) {
 
   const { hash, salt } = hashPassword(password)
   const user = await createUser(email, hash, salt)
-
-  // Best-effort and awaited — a serverless function can be frozen right
-  // after the response is sent, so an un-awaited send might never actually
-  // go out. A failure here shouldn't fail signup though, hence the catch.
-  try {
-    const token = await createVerificationToken(user.id, 'email_verify')
-    await sendVerificationEmail(user.email, token)
-  } catch (err) {
-    console.error('[signup] failed to send verification email', err)
-  }
 
   const res = NextResponse.json({ user: { id: user.id, email: user.email } })
   return attachSession(res, user.id)

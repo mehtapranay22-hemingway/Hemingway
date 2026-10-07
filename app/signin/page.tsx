@@ -9,8 +9,6 @@ function SignInForm() {
   const params = useSearchParams()
   const next = params.get('next') || '/'
 
-  const verifiedParam = params.get('verified')
-
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -48,17 +46,6 @@ function SignInForm() {
 
         <h1 className="font-display text-3xl text-ink mb-1">Welcome back.</h1>
         <p className="text-muted text-sm mb-8">Sign in to your account.</p>
-
-        {verifiedParam === '1' && (
-          <div className="border border-[#8A9B6A]/30 bg-[#8A9B6A]/5 text-[#5C6B45] text-sm px-4 py-3 mb-5">
-            Email verified — you can sign in now.
-          </div>
-        )}
-        {verifiedParam === '0' && (
-          <div className="border border-error/30 bg-error/5 text-error text-sm px-4 py-3 mb-5">
-            That verification link is invalid or has expired.
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>

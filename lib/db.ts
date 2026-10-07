@@ -123,12 +123,6 @@ export async function createUser(email: string, passwordHash: string, passwordSa
   return { id, email: normalizedEmail, passwordHash, passwordSalt, emailVerified: false, createdAt }
 }
 
-export async function markEmailVerified(userId: string): Promise<void> {
-  await ensureSchema()
-  const sql = getSql()
-  await sql`UPDATE users SET email_verified = TRUE WHERE id = ${userId}`
-}
-
 export async function setPasswordHash(userId: string, passwordHash: string, passwordSalt: string): Promise<void> {
   await ensureSchema()
   const sql = getSql()
