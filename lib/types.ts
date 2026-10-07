@@ -9,6 +9,20 @@ export const AUTO_CAST_ID = '__auto_cast__'
 // third "who's the face" option — this skips the character system entirely.
 export const NO_CHARACTER_ID = '__no_character__'
 
+// A rendered video's url is "expiring" only if it's still a raw Seedance/
+// BytePlus TOS link — those are presigned and die ~24h after generation
+// (confirmed live). Once lib/uploads.ts's saveVideoFromUrl rehosts it, the
+// url is a permanent Vercel Blob link — a full https://*.public.blob.
+// vercel-storage.com/... address, NOT a "/"-prefixed relative path. An
+// earlier version of this check tested for a leading "/" (true for the
+// pre-Blob era, when videos were served from local disk under
+// public/videos/...) and was never updated for the Blob migration — it was
+// flagging every successfully rehosted video as expired. Checking for the
+// one actual expiring domain instead of guessing from URL shape.
+export function isExpiringVideoUrl(url?: string | null): boolean {
+  return !!url && url.includes('.volces.com')
+}
+
 export type AvatarConfig = {
   avatarId: string
   avatarName: string

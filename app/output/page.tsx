@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Sidebar from '../components/Sidebar'
-import type { Session, Pipeline, SeedancePipeline } from '@/lib/types'
+import { isExpiringVideoUrl, type Session, type Pipeline, type SeedancePipeline } from '@/lib/types'
 
 // ── Pipeline progress indicator ─────────────────────────────────────────────
 
@@ -221,13 +221,10 @@ function VideoOutput({ session }: { session: Session }) {
   const videoUrl = finalUrl ?? (legacyRender?.status === 'completed' ? legacyRender.videoUrl : undefined)
   const hookLine = session.scripts?.[0]?.hookLine ?? session.renders[0]?.hookLine
 
-  // Seedance's raw video_url is a presigned link that expires ~24h after
-  // generation. Our own rehosted videos are always a local /videos/... path
-  // — anything else (an old render from before that fix, or a rare rehost
-  // failure that fell back to the remote URL) is guaranteed dead by the time
-  // anyone's actually viewing it, so it gets its own state instead of a
-  // video player and download link that silently fail.
-  const isExpired = isComplete && !!videoUrl && !videoUrl.startsWith('/')
+  // See lib/types.ts isExpiringVideoUrl — only a raw, unrehosted Seedance/
+  // BytePlus TOS link actually expires; a successfully rehosted video is a
+  // permanent Vercel Blob URL (full https://, never "/"-prefixed).
+  const isExpired = isComplete && isExpiringVideoUrl(videoUrl)
 
   const anyPending = seedance
     ? !finalUrl && !isFailed

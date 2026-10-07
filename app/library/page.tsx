@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Sidebar from '../components/Sidebar'
-import type { Session, RenderJob } from '@/lib/types'
+import { isExpiringVideoUrl, type Session, type RenderJob } from '@/lib/types'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -23,19 +23,9 @@ function recordKept(sessionId: string) {
   }).catch(() => {})
 }
 
-// Seedance hands back a presigned link that expires ~24h after generation —
-// anything rendered before the rehosting fix (or if the rehost itself ever
-// fails and falls back to the remote URL) only ever has that raw link, which
-// is guaranteed dead by the time anyone's browsing their library days later.
-// Our own rehosted videos are always a local /videos/... path, so anything
-// else is treated as expired rather than shown as a normal playable video.
-function isLikelyExpired(url?: string): boolean {
-  return !!url && !url.startsWith('/')
-}
-
 function VideoCard({ render, sessionId, date }: { render: RenderJob; sessionId: string; date: string }) {
   const [hovered, setHovered] = useState(false)
-  const expired = isLikelyExpired(render.videoUrl)
+  const expired = isExpiringVideoUrl(render.videoUrl)
 
   if (expired) {
     return (
