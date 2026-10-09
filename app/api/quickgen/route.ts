@@ -120,7 +120,15 @@ Output a single JSON object, no markdown fences, no explanation outside the JSON
 // that lets Claude choose with directorial intent instead of defaulting to
 // generic description or the same few moves every time. Shared between the
 // dialogue and cinematic system prompts below.
-const DIRECTOR_TOOLKIT = `Director's toolkit — camera and lighting technique, each with a specific job. Choose deliberately based on what THIS shot needs to do emotionally, not generically or at random:
+const DIRECTOR_TOOLKIT = `Director's toolkit — camera, lighting, and capture-format technique, each with a specific job. Choose deliberately based on what THIS video and THIS shot need to do emotionally, not generically or at random:
+
+Capture format (choose ONCE per video, state it explicitly, keep it consistent across every shot — this is the native medium the whole thing was "shot on," not a per-shot choice):
+- Selfie / front-camera phone: raw, intimate, trustworthy — strong default for direct-to-camera UGC testimonial.
+- Handheld camcorder / DV tape: nostalgic, playful, unmistakably authentic — strong for vlog-style, Gen-Z-leaning, or "day in the life" content. Specify the texture explicitly: tape noise, bloomed highlights, flickering auto-exposure, soft/slightly blurry quality, muted contrast.
+- Propped phone, hands-free POV: natural imperfection, candid — strong for tutorial, fitness, or any beat where the subject's hands need to be free.
+- Clean tripod / gimbal, crisp 4K: polished, premium, intentional — strong for luxury hero shots and product-only cinematic.
+- Found-footage / accidental framing: occasional misalignment, delayed focus pulls, face cut off at the edge of frame — stacks with any handheld format above to push authenticity further.
+Match format to the brand tier and audience, not out of habit — a $180 fragrance and a $25 gym supplement should not default to the same capture format.
 
 Camera movement:
 - Push-in (slow move toward subject): builds tension, signals "this matters" — strong for a hook or an emotional beat.
@@ -154,7 +162,8 @@ Seedance generates a whole multi-shot ad in ONE continuous pass — talking char
 ${DIRECTOR_TOOLKIT}
 
 Rules:
-- If spokesperson reference image(s) are given, every shot featuring them must reference those image numbers and keep identity, outfit, and setting consistent across the whole video. If multiple images are given for the spokesperson, they're the same person from different angles, not different people. If no spokesperson reference is given, invent one whose look, age, and setting genuinely fit the product and audience, and describe them in enough detail in the first shot that later shots can consistently refer back to "the spokesperson."
+- State the capture format explicitly before the shot list (one line: format + its texture/color-science detail from the toolkit above), and keep it consistent across every shot — the whole video is "shot on" one native medium, not a different one per cutaway.
+- If spokesperson reference image(s) are given, every shot featuring them must reference those image numbers and keep identity, outfit, and setting consistent across the whole video. If multiple images are given for the spokesperson, they're the same person from different angles, not different people. If no spokesperson reference is given, invent one — and describe them with real specificity in the first shot, not a vague fit-description: hair (color, length, style), skin/makeup, build, exact wardrobe (garment, color, cut), any accessories, and expression. Enough detail that later shots can consistently refer back to "the spokesperson" as a specific person, not a generic placeholder.
 - If a product reference image is given, every shot showing the product — especially cutaways — must reference that image number and match its real appearance (color, shape, packaging). Never invent a different-looking product when a real reference exists.
 - Put every spoken line in double quotes exactly as given, so Seedance lip-syncs it — never paraphrase the provided dialogue.
 - Structure it as a shot list, each line starting with its timecode range (e.g. "0-4s: ..."), alternating between the spokesperson speaking to camera and quick cutaway shots of the product/context. Timecodes must be contiguous and sum to the target duration — this is a stronger pacing signal than a bare shot count, and matches how Seedance's own examples are written.
@@ -241,6 +250,7 @@ ${pastAdsSection(pastKept, 'cinematic shot lists')}
 
 Rules:
 - Structure the output as a shot list, each line starting with its timecode range (e.g. "0-4s: ..."), not just a shot number — 4 to 6 shots (narrative briefs may run up to 8, to leave room for the payoff). Timecodes must be contiguous and sum to the target duration.
+- State the capture/finish explicitly before the shot list (one line: lens/finish character and color-grade mood — e.g. anamorphic warmth, clean digital crispness, film-grain texture) and keep it consistent across every shot. This mode is always the clean-tripod/gimbal end of the toolkit's capture-format spectrum, never handheld camcorder or selfie-cam imperfection — that belongs to UGC mode, not here.
 - Vary the opening shot, setting, and camera approach genuinely across generations — don't default to the same establishing shot or lighting setup every time, including relative to this client's own past kept shot lists above. Treat those as a reference for quality and tone only, never a template to reuse.
 - Every shot is pure visual/camera direction: framing, camera movement, lighting, pacing, transitions — name the specific technique from the toolkit above and why it fits that shot's job, don't leave it generic. No spoken lines, no dialogue in quotes, no voiceover, no named character.
 - An incidental, unnamed person may appear where a shot calls for it (e.g. "a hand reaches for the box," "someone walking past in soft focus, out of focus"). Describe them only by the action — never name them, never describe them with enough consistent detail to imply a recurring identity across shots. A different unnamed person in each shot is fine; there is no identity to maintain.
