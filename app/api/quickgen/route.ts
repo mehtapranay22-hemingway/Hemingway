@@ -130,16 +130,16 @@ Capture format (choose ONCE per video, state it explicitly, keep it consistent a
 - Found-footage / accidental framing: occasional misalignment, delayed focus pulls, face cut off at the edge of frame — stacks with any handheld format above to push authenticity further.
 Match format to the brand tier and audience, not out of habit — a $180 fragrance and a $25 gym supplement should not default to the same capture format.
 
-Camera movement:
-- Push-in (slow move toward subject): builds tension, signals "this matters" — strong for a hook or an emotional beat.
-- Pull-back / reveal: unveils context or scale after a tight detail — strong for a "wait for it" moment.
-- Orbit (circles the subject): showcases full form and craftsmanship — strong for a hero product shot.
-- Tracking (moves alongside the subject): creates momentum and energy — strong for action or a walk-and-talk.
-- Static lockoff: calm, confident, lets the subject speak for itself — strong for dialogue-heavy or trust-building beats.
-- Handheld drift: authentic, lived-in, UGC-native — strong for cutaways and relatable context.
-- Whip pan: fast, jarring transition between two beats — strong for a hard cut between before/after or a scene change.
-- Crane / rise: scale and grandeur — strong for an epic reveal or a finale.
-- Macro push/slide: luxury, texture, craftsmanship — strong for premium product detail.
+Camera movement — constrained by the capture format you picked above. A propped phone or selfie-cam physically cannot orbit, crane, or dolly; it can only stay static, drift with the body holding it, or whip to a new framing. Never call for a move the chosen format couldn't actually produce:
+- Push-in (slow move toward subject): builds tension, signals "this matters" — strong for a hook or an emotional beat. Tripod/gimbal only.
+- Pull-back / reveal: unveils context or scale after a tight detail — strong for a "wait for it" moment. Tripod/gimbal only.
+- Orbit (circles the subject): showcases full form and craftsmanship — strong for a hero product shot. Tripod/gimbal only.
+- Tracking (moves alongside the subject): creates momentum and energy — strong for action or a walk-and-talk. Tripod/gimbal, or handheld if someone is visibly walking and filming.
+- Static lockoff: calm, confident, lets the subject speak for itself — strong for dialogue-heavy or trust-building beats. Any format, including propped phone.
+- Handheld drift: authentic, lived-in, UGC-native — natural for any handheld or propped format, including when the subject's own movement (not the camera operator) causes the drift.
+- Whip pan: fast, jarring transition between two beats — strong for a hard cut between before/after or a scene change. Any handheld format.
+- Crane / rise: scale and grandeur — strong for an epic reveal or a finale. Tripod/gimbal only.
+- Macro push/slide: luxury, texture, craftsmanship — strong for premium product detail. Tripod/gimbal only.
 
 Lighting:
 - Soft, diffused: approachable, gentle — wellness, skincare, everyday-use products.
@@ -167,9 +167,9 @@ Rules:
 - If a product reference image is given, every shot showing the product — especially cutaways — must reference that image number and match its real appearance (color, shape, packaging). Never invent a different-looking product when a real reference exists.
 - The final shot that closes on the product (usually the CTA beat) must be a clean, legible hero angle — full product visible, well-lit, nothing cropped or shown from an awkward/extreme angle — even though earlier cutaways default to rougher handheld UGC style. This is the shot doing the most commercial work in the whole video; a bad angle there undercuts everything before it.
 - Put every spoken line in double quotes exactly as given, so Seedance lip-syncs it — never paraphrase the provided dialogue.
-- Structure it as a shot list, each line starting with its timecode range (e.g. "0-4s: ..."), alternating between the spokesperson speaking to camera and quick cutaway shots of the product/context. Timecodes must be contiguous and sum to the target duration — this is a stronger pacing signal than a bare shot count, and matches how Seedance's own examples are written.
-- Name the camera movement and lighting choice explicitly in each shot's description, drawn from the toolkit above and matched to that shot's job (hook/setup/payoff/CTA) — not left implicit.
-- Cutaway shots default to handheld, natural, UGC-style ("phone footage") unless the toolkit calls for something more deliberate for that specific beat (e.g. a macro push on the payoff).
+- Structure it as a shot list, each line starting with its timecode range (e.g. "0-4s: ..."). Timecodes must be contiguous and sum to the target duration — this is a stronger pacing signal than a bare shot count, and matches how Seedance's own examples are written.
+- Cutting away from the spokesperson to a separate shot of the product is a tool, not a default — use it only when there's a genuine reason (a clean look at the product, a detail the dialogue just referenced). If the brief is one continuous activity or scene (e.g. a vlog-style routine, a single ongoing moment), keep the camera on the spokesperson doing that activity for every shot instead of inventing a cutaway just to vary the shot — the reference material this mechanic is based on never cuts away from the person at all, and that continuity is part of why it reads as authentic. Default to staying with the person; only cut away when the moment actually earns it.
+- Name the camera movement and lighting choice explicitly in each shot's description, matched to that shot's job (hook/setup/payoff/CTA) and physically consistent with the capture format — not left implicit, and never a move the format couldn't produce.
 - Keep the total run time close to the target duration.
 - If the brief below marks this as a narrative with a payoff beat, that beat must appear as its own clearly depicted shot — never compressed into a cutaway, background action, or summarized in the spokesperson's line without being shown. If any shot needs cutting to fit the duration, cut setup shots first, never the payoff.
 - Output plain text only: the shot list, one shot per line, no markdown, no JSON, no commentary before or after.`
@@ -204,7 +204,7 @@ async function generateSeedancePrompt(params: {
 
   const userPrompt = `${refLines.join('\n')}
 Target duration: ~${script.estimatedDurationSeconds}s
-Number of cutaway/B-roll beats: ${clipCount}
+Suggested max cutaway/B-roll beats (a ceiling, not a quota — use fewer, or none, if the scene is one continuous activity that shouldn't be interrupted): ${clipCount}
 Suggested timecode breakdown (adjust as needed, keep contiguous): ${timecodes}
 Product: ${description}${payoffLine}
 
