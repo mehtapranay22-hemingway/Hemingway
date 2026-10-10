@@ -472,6 +472,7 @@ export default function HomePage() {
           </div>
 
           <div className="flex flex-wrap gap-5 text-xs text-[#B0ACA5] mt-10 pt-6 border-t border-[#E8E5DF]">
+            <Link href="/blog" className="hover:text-ink transition-colors">Blog</Link>
             <Link href="/terms" className="hover:text-ink transition-colors">Terms</Link>
             <Link href="/privacy" className="hover:text-ink transition-colors">Privacy</Link>
             <Link href="/refund-policy" className="hover:text-ink transition-colors">Refunds</Link>

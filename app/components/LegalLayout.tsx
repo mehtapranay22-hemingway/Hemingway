@@ -27,6 +27,7 @@ export default function LegalLayout({
         </div>
 
         <div className="mt-16 pt-8 border-t border-divider flex gap-6 text-xs text-muted">
+          <Link href="/blog" className="hover:text-ink transition-colors">Blog</Link>
           <Link href="/terms" className="hover:text-ink transition-colors">Terms</Link>
           <Link href="/privacy" className="hover:text-ink transition-colors">Privacy</Link>
           <Link href="/refund-policy" className="hover:text-ink transition-colors">Refunds</Link>
